@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Radiation Monitor</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+
+    <string name="bluetooth_not_supported">This device doesn\'t support Bluetooth.</string>
+    <string name="bluetooth_enabled">Bluetooth enabled</string>
+    <string name="bluetooth_disabled">Bluetooth disabled</string>
+    <string name="bluetooth_device_not_set">Bluetooth device not set</string>
+
+    <string name="pref_connectionType">Connection Type</string>
+    <string name="pref_connectionType_random">RANDOM</string>
+    <string name="pref_connectionType_bluetooth">BLUETOOTH</string>
+    <string name="pref_tube_sbm20">SBM20</string>
+    <string name="pref_tube_custom">CUSTOM</string>
+
+    <string name="pref_bluetoothDevice">Bluetooth Device</string>
+    <string name="pref_tube">GM Tube</string>
+    <string name="pref_conversion_factor_sbm20">175.0</string>
+    <string name="pref_conversion_factor">Custom CPM Conversion Factor</string>
+    <string name="pref_conversion_factor_summary">{0} CPM ~ 1µSv/h</string>
+</resources>

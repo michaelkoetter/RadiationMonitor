@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="pref_connectionType_entries">
+        <item>Random Values</item>
+        <item>Bluetooth</item>
+    </string-array>
+    <string-array name="pref_connectionType_values">
+        <item>RANDOM</item>
+        <item>BLUETOOTH</item>
+    </string-array>
+    
+    <string-array name="pref_tube_entries">
+        <item>SBM-20</item>
+        <item>Custom</item>
+    </string-array>
+    <string-array name="pref_tube_values">
+        <item>SBM20</item>
+        <item>CUSTOM</item>
+    </string-array>
+</resources>

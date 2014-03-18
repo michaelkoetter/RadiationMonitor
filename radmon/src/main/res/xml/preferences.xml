@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <ListPreference
+        android:key="connectionType"
+        android:title="@string/pref_connectionType"
+        android:entries="@array/pref_connectionType_entries"
+        android:entryValues="@array/pref_connectionType_values"
+        android:defaultValue="@string/pref_connectionType_random"/>
+
+    <de.mkoetter.radmon.BluetoothDevicePreference
+        android:key="bluetoothDevice"
+        android:title="@string/pref_bluetoothDevice" />
+
+    <ListPreference
+        android:key="tube"
+        android:title="@string/pref_tube"
+        android:entries="@array/pref_tube_entries"
+        android:entryValues="@array/pref_tube_values"
+        android:defaultValue="@string/pref_tube_sbm20" />
+
+
+    <EditTextPreference
+        android:key="conversionFactor"
+        android:title="@string/pref_conversion_factor"
+        android:defaultValue="@string/pref_conversion_factor_sbm20"
+        android:inputType="numberDecimal" />
+</PreferenceScreen>

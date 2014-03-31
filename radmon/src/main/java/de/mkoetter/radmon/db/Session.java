@@ -15,6 +15,16 @@ public class Session {
     private String device;
     private Double conversionFactor;
 
+    public String getUnit() {
+        return unit;
+    }
+
+    public void setUnit(String unit) {
+        this.unit = unit;
+    }
+
+    private String unit;
+
     public Double getConversionFactor() {
         return conversionFactor;
     }
@@ -62,6 +72,7 @@ public class Session {
         session.endTime = cursor.isNull(2) ? null : new Date(cursor.getLong(2));
         session.device = cursor.getString(3);
         session.conversionFactor = cursor.isNull(4) ? null : cursor.getDouble(4);
+        session.unit = cursor.getString(5);
 
         return session;
     }

@@ -1,5 +1,7 @@
 package de.mkoetter.radmon.device;
 
+import android.content.SharedPreferences;
+
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -8,10 +10,16 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by Michael on 14.03.14.
  */
-public class RandomCPMDevice implements Device, Runnable {
+public class RandomCPMDevice extends AbstractCPMDevice implements Runnable {
 
     private ScheduledExecutorService scheduler = null;
     private DeviceClient client;
+
+    public static final String CONNECTION_TYPE = "RANDOM";
+
+    public RandomCPMDevice(SharedPreferences preferences) {
+        super(CONNECTION_TYPE, preferences);
+    }
 
     @Override
     public synchronized void connect(final DeviceClient client) {

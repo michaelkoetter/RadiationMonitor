@@ -3,10 +3,8 @@ package de.mkoetter.radmon;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -15,15 +13,9 @@ import android.widget.Toast;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
-import java.text.ParseException;
 import java.util.Locale;
 
 import de.mkoetter.radmon.db.Session;
-import de.mkoetter.radmon.device.ConnectionStatus;
-import de.mkoetter.radmon.device.Device;
-import de.mkoetter.radmon.device.DeviceClient;
-import de.mkoetter.radmon.device.RandomCPMDevice;
-import de.mkoetter.radmon.device.SimpleBluetoothDevice;
 
 public class MainActivity extends ActionBarActivity implements RadmonServiceClient {
 
@@ -62,27 +54,23 @@ public class MainActivity extends ActionBarActivity implements RadmonServiceClie
         return true;
     }
 
-    /*
+
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
         MenuItem connect = menu.findItem(R.id.action_connect);
-        switch (connectionStatus) {
-            case Disconnected:
-                connect.setEnabled(true);
+        if (radmonService != null) {
+            connect.setEnabled(true);
+            if (currentSession == null) {
                 connect.setTitle(R.string.action_connect);
-                break;
-            case Connected:
-                connect.setEnabled(true);
+            } else {
                 connect.setTitle(R.string.action_disconnect);
-                break;
-            case Connecting:
-                connect.setEnabled(false);
-                break;
+            }
+        } else {
+            connect.setEnabled(false);
         }
 
         return true;
     }
-    */
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -106,13 +94,17 @@ public class MainActivity extends ActionBarActivity implements RadmonServiceClie
 
     private void toggleConnect() {
         if (radmonService != null) {
-            radmonService.connect();
-        } else {
-            Toast.makeText(this, "Service not bound", Toast.LENGTH_SHORT).show();
+            if (currentSession != null) {
+                // disconnect / stop
+                radmonService.stopSession(currentSession);
+            } else {
+                // connect / start
+                radmonService.startSession();
+            }
         }
     }
 
-    public void onUpdateCPM(final long cpm) {
+    public void onUpdateCPM(final Long cpm) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -121,14 +113,23 @@ public class MainActivity extends ActionBarActivity implements RadmonServiceClie
                 if (currentSession != null) {
                     Double conversionFactor = currentSession.getConversionFactor();
                     dose = cpm / conversionFactor;
+
+                    TextView txtCPM = (TextView) findViewById(R.id.txtCPM);
+                    TextView txtDose = (TextView) findViewById(R.id.txtDose);
+                    TextView txtUnit = (TextView) findViewById(R.id.txtDoseUnits);
+                    txtUnit.setText(currentSession.getUnit());
+                    txtCPM.setText(Long.toString(cpm));
+                    txtDose.setText(DECIMAL_FORMAT.format(dose));
                 }
 
-                TextView txtCPM = (TextView) findViewById(R.id.txtCPM);
-                TextView txtDose = (TextView) findViewById(R.id.txtDose);
-                txtCPM.setText(Long.toString(cpm));
-                txtDose.setText(DECIMAL_FORMAT.format(dose));
             }
         });
+    }
+
+    @Override
+    public void onUpdateSession(final Session session) {
+        currentSession = session;
+        supportInvalidateOptionsMenu();
     }
 
     private ServiceConnection radmonServiceConnection = new ServiceConnection() {
@@ -138,7 +139,7 @@ public class MainActivity extends ActionBarActivity implements RadmonServiceClie
             radmonService = binder.getService();
 
             radmonService.setServiceClient(MainActivity.this);
-            currentSession = radmonService.getCurrentSession();
+            // this calls onUpdateSession, onUpdateCPM
         }
 
         @Override
@@ -146,4 +147,5 @@ public class MainActivity extends ActionBarActivity implements RadmonServiceClie
             radmonService = null;
         }
     };
+
 }

@@ -5,10 +5,8 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.IBinder;
-import android.preference.PreferenceManager;
 import android.support.v4.app.NotificationCompat;
 import android.widget.Toast;
 
@@ -17,29 +15,25 @@ import java.util.Date;
 import de.mkoetter.radmon.db.Session;
 import de.mkoetter.radmon.db.SessionDataSource;
 import de.mkoetter.radmon.device.ConnectionStatus;
-import de.mkoetter.radmon.device.Device;
+import de.mkoetter.radmon.device.CPMDevice;
 import de.mkoetter.radmon.device.DeviceClient;
-import de.mkoetter.radmon.device.RandomCPMDevice;
-import de.mkoetter.radmon.device.SimpleBluetoothDevice;
+import de.mkoetter.radmon.device.DeviceFactory;
 
 public class RadmonService extends Service implements DeviceClient {
 
     private NotificationManager notificationManager;
+    private NotificationCompat.Builder notificationBuilder;
+
     private static final int ID_NOTIFICATION = 1;
 
-    private Device device = null;
-    private ConnectionStatus connectionStatus = null;
-
-    private RadmonServiceClient client = null;
-
-    // session data
-    // TODO encapsulate session data
-    private Long sessionId = null;
-    private String connectionType = null;
-    private Double conversionFactor = null;
-    private Long lastCPM = null;
+    private DeviceFactory deviceFactory;
+    private CPMDevice cpmDevice = null;
 
     private SessionDataSource sessionDataSource;
+    private Session currentSession = null;
+    private Long currentCPM = null;
+
+    private RadmonServiceClient client = null;
 
     public class LocalBinder extends Binder {
         RadmonService getService() {
@@ -53,7 +47,21 @@ public class RadmonService extends Service implements DeviceClient {
     public void onCreate() {
         notificationManager = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
         sessionDataSource = new SessionDataSource(this);
-        startForeground(ID_NOTIFICATION, getServiceNotification("Idle"));
+        deviceFactory = new DeviceFactory(this);
+
+        Intent mainActivity = new Intent(this, MainActivity.class);
+        mainActivity.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+
+        PendingIntent mainActivityIntent = PendingIntent.getActivity(
+                this,
+                0,
+                mainActivity,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+
+        notificationBuilder = new NotificationCompat.Builder(this)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(getString(R.string.app_name))
+            .setContentIntent(mainActivityIntent);
     }
 
     @Override
@@ -68,21 +76,8 @@ public class RadmonService extends Service implements DeviceClient {
     }
 
     private Notification getServiceNotification(String text) {
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
-        Intent mainActivity = new Intent(this, MainActivity.class);
-        mainActivity.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-
-        PendingIntent mainActivityIntent = PendingIntent.getActivity(
-                this,
-                0,
-                mainActivity,
-                PendingIntent.FLAG_UPDATE_CURRENT);
-
-        return builder
-                .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("Radiation Monitor")
+        return notificationBuilder
                 .setContentText(text)
-                .setContentIntent(mainActivityIntent)
                 .build();
     }
 
@@ -93,14 +88,13 @@ public class RadmonService extends Service implements DeviceClient {
 
     @Override
     public void onUpdateCPM(final long cpm) {
-        notificationManager.notify(ID_NOTIFICATION, getServiceNotification("New CPM: " + cpm));
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                sessionDataSource.addMeasurement(sessionId, new Date(), cpm, null);
-            }
-        }).start();
+        notificationManager.notify(ID_NOTIFICATION, getServiceNotification("Current CPM: " + cpm));
+        currentCPM = cpm;
+        if (currentSession != null) {
+            // TODO add location
+            sessionDataSource.addMeasurement(currentSession.getId(),
+                    new Date(), cpm, null);
+        }
 
         if (client != null) {
             client.onUpdateCPM(cpm);
@@ -109,80 +103,66 @@ public class RadmonService extends Service implements DeviceClient {
 
     @Override
     public void onConnectionStatusChange(ConnectionStatus status, String message) {
-        connectionStatus = status;
         if (message != null) {
             notificationManager.notify(ID_NOTIFICATION, getServiceNotification(message));
         }
-
-        switch (connectionStatus) {
-            case Connected:
-                newSession();
-                break;
-            case Disconnected:
-                finalizeSession();
-                break;
-        }
     }
 
-    public void connect() {
-        if (device == null) {
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-            connectionType = prefs.getString("connectionType", null);
-            if ("BLUETOOTH".equals(connectionType)) {
-                String deviceAddress = prefs.getString("bluetoothDevice", null);
-                if (deviceAddress != null) {
-                    device = new SimpleBluetoothDevice(deviceAddress);
-                } else {
-                    Toast.makeText(this, R.string.bluetooth_device_not_set, Toast.LENGTH_LONG).show();
+    public void startSession() {
+        if (cpmDevice != null) {
+            cpmDevice.disconnect();
+        }
+
+        cpmDevice = deviceFactory.getConfiguredDevice();
+        if (cpmDevice != null) {
+            if (currentSession == null) {
+                startForeground(ID_NOTIFICATION, getServiceNotification("Starting session..."));
+
+                long sessionId = sessionDataSource.createSession(new Date(),
+                        cpmDevice.getDeviceName(),
+                        cpmDevice.getConversionFactor(),
+                        cpmDevice.getUnit());
+                currentSession = sessionDataSource.getSession(sessionId);
+
+                if (client != null) {
+                    client.onUpdateSession(currentSession);
                 }
-            } else if ("RANDOM".equals(connectionType)) {
-                device = new RandomCPMDevice();
-            }
 
-            String _conversionFactor = prefs.getString("conversionFactor", null);
-            conversionFactor = Double.valueOf(_conversionFactor);
+                cpmDevice.connect(this);
 
-            if (device != null) {
-                device.connect(this);
+            } else {
+                Toast.makeText(this, "Session already in progress", Toast.LENGTH_LONG).show();
             }
+        } else {
+            Toast.makeText(this, "Could not configure device", Toast.LENGTH_SHORT).show();
         }
     }
 
-    public void disconnect() {
-        if (device != null) {
-            device.disconnect();
-            device = null;
+    public void stopSession(Session session) {
+        if (cpmDevice != null) {
+            cpmDevice.disconnect();
+            cpmDevice = null;
         }
-    }
 
-    public boolean isConnected() {
-        return device != null;
-    }
+        if (currentSession != null) {
+            // TODO finalize session
+            currentSession = null;
+            if (client != null) {
+                client.onUpdateSession(null);
+            }
+        }
 
-    public Long getLastCPM() {
-        return lastCPM;
+        stopForeground(true);
     }
 
     public Session getCurrentSession() {
-        if (sessionId != null) {
-            return sessionDataSource.getSession(sessionId);
-        }
-        return null;
+        return currentSession;
     }
 
     public void setServiceClient(RadmonServiceClient serviceClient) {
         this.client = serviceClient;
-    }
 
-    private void newSession() {
-        if (sessionId != null) {
-            finalizeSession();
-        }
-        sessionId = sessionDataSource.createSession(new Date(), connectionType, conversionFactor);
-    }
-
-    private void finalizeSession() {
-        // ... TODO finalize the session
-        this.sessionId = null;
+        client.onUpdateSession(currentSession);
+        client.onUpdateCPM(currentCPM);
     }
 }

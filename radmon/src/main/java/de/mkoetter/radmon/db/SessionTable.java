@@ -15,8 +15,10 @@ public class SessionTable {
     public static final String COLUMN_END_TIME = "end_time";
     public static final String COLUMN_DEVICE = "device";
     public static final String COLUMN_CONVERSION_FACTOR = "conversion_factor";
+    public static final String COLUMN_UNIT = "unit";
+
     public static final String[] ALL_COLUMNS = {
-            COLUMN_ID, COLUMN_START_TIME, COLUMN_END_TIME, COLUMN_DEVICE, COLUMN_CONVERSION_FACTOR
+            COLUMN_ID, COLUMN_START_TIME, COLUMN_END_TIME, COLUMN_DEVICE, COLUMN_CONVERSION_FACTOR, COLUMN_UNIT
     };
 
     private static final String TABLE_SESSION_CREATE = "CREATE TABLE " +
@@ -25,7 +27,8 @@ public class SessionTable {
             COLUMN_START_TIME + " INTEGER NOT NULL, " +
             COLUMN_END_TIME + " INTEGER, " +
             COLUMN_DEVICE + " TEXT NOT NULL, " +
-            COLUMN_CONVERSION_FACTOR + " REAL NOT NULL );";
+            COLUMN_CONVERSION_FACTOR + " REAL NOT NULL, " +
+            COLUMN_UNIT + " TEXT NOT NULL );";
 
     public static void onCreate(SQLiteDatabase sqLiteDatabase) {
         sqLiteDatabase.execSQL(TABLE_SESSION_CREATE);

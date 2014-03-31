@@ -3,6 +3,7 @@ package de.mkoetter.radmon.device;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.SharedPreferences;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,7 +12,7 @@ import java.util.UUID;
 /**
  * Created by Michael on 14.03.14.
  */
-public class SimpleBluetoothDevice implements Device, Runnable {
+public class BluetoothCPMDevice extends AbstractCPMDevice implements Runnable {
     private static final UUID UUID_SPP =
             UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
@@ -19,8 +20,11 @@ public class SimpleBluetoothDevice implements Device, Runnable {
     private DeviceClient client = null;
 
     private BluetoothSocket socket = null;
-    public SimpleBluetoothDevice(String address) {
-        this.address = address;
+    public static final String CONNECTION_TYPE = "BLUETOOTH";
+
+    public BluetoothCPMDevice(SharedPreferences preferences) {
+        super(CONNECTION_TYPE, preferences);
+        this.address = preferences.getString("bluetoothDevice", null);
     }
 
     @Override

@@ -25,11 +25,12 @@ public class SessionDataSource {
         return openHelper.getWritableDatabase(); // this is cached by the SQLiteOpenHelper
     }
 
-    public long createSession(Date startTime, String device, Double conversionFactor) {
+    public long createSession(Date startTime, String device, Double conversionFactor, String unit) {
         ContentValues values = new ContentValues();
         values.put(SessionTable.COLUMN_START_TIME, startTime.getTime());
         values.put(SessionTable.COLUMN_DEVICE, device);
         values.put(SessionTable.COLUMN_CONVERSION_FACTOR, conversionFactor);
+        values.put(SessionTable.COLUMN_UNIT, unit);
 
         long sessionId = getDatabase().insert(SessionTable.TABLE_NAME, null, values);
         return sessionId;

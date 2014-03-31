@@ -1,8 +1,11 @@
 package de.mkoetter.radmon;
 
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
@@ -15,19 +18,20 @@ import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
 import java.util.Locale;
 
+import de.mkoetter.radmon.db.Session;
 import de.mkoetter.radmon.device.ConnectionStatus;
 import de.mkoetter.radmon.device.Device;
 import de.mkoetter.radmon.device.DeviceClient;
 import de.mkoetter.radmon.device.RandomCPMDevice;
 import de.mkoetter.radmon.device.SimpleBluetoothDevice;
 
-public class MainActivity extends ActionBarActivity implements DeviceClient {
+public class MainActivity extends ActionBarActivity implements RadmonServiceClient {
 
     private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("#0.00",
             DecimalFormatSymbols.getInstance(Locale.US));
 
-    private ConnectionStatus connectionStatus = ConnectionStatus.Disconnected;
-    private Device device = null;
+    private RadmonService radmonService = null;
+    private Session currentSession = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +40,11 @@ public class MainActivity extends ActionBarActivity implements DeviceClient {
 
         // Set up the action bar to show a dropdown list.
         // final ActionBar actionBar = getSupportActionBar();
+
+        // bind our helper service
+        Intent radmonServiceIntent = new Intent(this, RadmonService.class);
+        startService(radmonServiceIntent);
+        bindService(radmonServiceIntent, radmonServiceConnection, BIND_AUTO_CREATE);
     }
 
     @Override
@@ -46,7 +55,6 @@ public class MainActivity extends ActionBarActivity implements DeviceClient {
     public void onSaveInstanceState(Bundle outState) {
     }
 
-
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -54,6 +62,7 @@ public class MainActivity extends ActionBarActivity implements DeviceClient {
         return true;
     }
 
+    /*
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
         MenuItem connect = menu.findItem(R.id.action_connect);
@@ -73,6 +82,7 @@ public class MainActivity extends ActionBarActivity implements DeviceClient {
 
         return true;
     }
+    */
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -95,54 +105,22 @@ public class MainActivity extends ActionBarActivity implements DeviceClient {
     }
 
     private void toggleConnect() {
-        switch (connectionStatus) {
-            case Disconnected:
-                connect();
-                break;
-            case Connected:
-                disconnect();
-                break;
-        }
-    }
-    private void disconnect() {
-        device.disconnect();
-    }
-
-    private void connect() {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        String connectionType = prefs.getString("connectionType", null);
-        if ("BLUETOOTH".equals(connectionType)) {
-            String deviceAddress = prefs.getString("bluetoothDevice", null);
-            if (deviceAddress != null) {
-                device = new SimpleBluetoothDevice(deviceAddress);
-            } else {
-                Toast.makeText(this, R.string.bluetooth_device_not_set, Toast.LENGTH_LONG);
-            }
-        } else if ("RANDOM".equals(connectionType)) {
-            device = new RandomCPMDevice();
-        }
-
-        if (device != null) {
-            device.connect(this);
+        if (radmonService != null) {
+            radmonService.connect();
+        } else {
+            Toast.makeText(this, "Service not bound", Toast.LENGTH_SHORT).show();
         }
     }
 
-    @Override
     public void onUpdateCPM(final long cpm) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-                String _conversionFactor = prefs.getString("conversionFactor", null);
                 Double dose = 0d;
 
-                if (_conversionFactor != null) {
-                    try {
-                        Number conversionFactor = SettingsActivity.DECIMAL_FORMAT.parse(_conversionFactor);
-                        dose = cpm / conversionFactor.doubleValue();
-                    } catch (ParseException e) {
-                         // ignore
-                    }
+                if (currentSession != null) {
+                    Double conversionFactor = currentSession.getConversionFactor();
+                    dose = cpm / conversionFactor;
                 }
 
                 TextView txtCPM = (TextView) findViewById(R.id.txtCPM);
@@ -153,17 +131,19 @@ public class MainActivity extends ActionBarActivity implements DeviceClient {
         });
     }
 
-    @Override
-    public void onConnectionStatusChange(final ConnectionStatus status, final String message) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                connectionStatus = status;
-                if (message != null) {
-                    Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
-                }
-                supportInvalidateOptionsMenu();
-            }
-        });
-    }
+    private ServiceConnection radmonServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            RadmonService.LocalBinder binder = (RadmonService.LocalBinder)iBinder;
+            radmonService = binder.getService();
+
+            radmonService.setServiceClient(MainActivity.this);
+            currentSession = radmonService.getCurrentSession();
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            radmonService = null;
+        }
+    };
 }

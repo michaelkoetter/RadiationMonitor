@@ -25,7 +25,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="0.123"
+                    android:text="0.0"
                     android:id="@+id/txtDose"
                     android:textSize="50dp"
                     android:layout_gravity="bottom|right"
@@ -52,7 +52,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textAppearance="?android:attr/textAppearanceLarge"
-                    android:text="123"
+                    android:text="0"
                     android:id="@+id/txtCPM"
                     android:layout_gravity="bottom|right"
                     android:layout_column="1"

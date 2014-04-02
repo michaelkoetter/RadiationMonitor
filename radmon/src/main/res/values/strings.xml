@@ -6,6 +6,9 @@
     <string name="action_connect">Connect</string>
     <string name="action_disconnect">Disconnect</string>
 
+    <string name="tab_current">Current</string>
+    <string name="tab_logs">Logs</string>
+
     <string name="bluetooth_not_supported">This device doesn\'t support Bluetooth.</string>
     <string name="bluetooth_enabled">Bluetooth enabled</string>
     <string name="bluetooth_disabled">Bluetooth disabled</string>

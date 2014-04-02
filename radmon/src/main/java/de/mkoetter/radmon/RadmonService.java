@@ -10,12 +10,14 @@ import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import de.mkoetter.radmon.db.Session;
 import de.mkoetter.radmon.db.SessionDataSource;
-import de.mkoetter.radmon.device.ConnectionStatus;
 import de.mkoetter.radmon.device.CPMDevice;
+import de.mkoetter.radmon.device.ConnectionStatus;
 import de.mkoetter.radmon.device.DeviceClient;
 import de.mkoetter.radmon.device.DeviceFactory;
 
@@ -33,10 +35,10 @@ public class RadmonService extends Service implements DeviceClient {
     private Session currentSession = null;
     private Long currentCPM = null;
 
-    private RadmonServiceClient client = null;
+    private List<RadmonServiceClient> serviceClients;
 
     public class LocalBinder extends Binder {
-        RadmonService getService() {
+        public RadmonService getService() {
             return RadmonService.this;
         }
     }
@@ -62,6 +64,8 @@ public class RadmonService extends Service implements DeviceClient {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.app_name))
             .setContentIntent(mainActivityIntent);
+
+        serviceClients = new ArrayList<RadmonServiceClient>();
     }
 
     @Override
@@ -96,7 +100,7 @@ public class RadmonService extends Service implements DeviceClient {
                     new Date(), cpm, null);
         }
 
-        if (client != null) {
+        for (RadmonServiceClient client : serviceClients) {
             client.onUpdateCPM(cpm);
         }
     }
@@ -124,7 +128,7 @@ public class RadmonService extends Service implements DeviceClient {
                         cpmDevice.getUnit());
                 currentSession = sessionDataSource.getSession(sessionId);
 
-                if (client != null) {
+                for (RadmonServiceClient client : serviceClients) {
                     client.onUpdateSession(currentSession);
                 }
 
@@ -147,7 +151,7 @@ public class RadmonService extends Service implements DeviceClient {
         if (currentSession != null) {
             // TODO finalize session
             currentSession = null;
-            if (client != null) {
+            for (RadmonServiceClient client : serviceClients) {
                 client.onUpdateSession(null);
             }
         }
@@ -159,10 +163,17 @@ public class RadmonService extends Service implements DeviceClient {
         return currentSession;
     }
 
-    public void setServiceClient(RadmonServiceClient serviceClient) {
-        this.client = serviceClient;
+    public synchronized void addServiceClient(RadmonServiceClient serviceClient) {
 
-        client.onUpdateSession(currentSession);
-        client.onUpdateCPM(currentCPM);
+        if (!serviceClients.contains(serviceClient))
+            serviceClients.add(serviceClient);
+
+        // update client once
+        serviceClient.onUpdateSession(currentSession);
+        serviceClient.onUpdateCPM(currentCPM);
+    }
+
+    public synchronized void removeServiceClient(RadmonServiceClient serviceClient) {
+        serviceClients.remove(serviceClient);
     }
 }

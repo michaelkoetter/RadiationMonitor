@@ -5,7 +5,7 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 
 import de.mkoetter.radmon.fragment.CurrentFragment;
-import de.mkoetter.radmon.fragment.LogsFragment;
+import de.mkoetter.radmon.fragment.SessionsFragment;
 
 /**
  * Created by mk on 02.04.14.
@@ -22,7 +22,7 @@ public class TabsPagerAdapter extends FragmentPagerAdapter {
             case 0:
                 return new CurrentFragment();
             case 1:
-                return new LogsFragment();
+                return new SessionsFragment();
         };
         return null;
     }

@@ -1,12 +1,18 @@
 package de.mkoetter.radmon.fragment;
 
 import android.content.ComponentName;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.database.ContentObserver;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,12 +20,15 @@ import android.widget.TextView;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.util.List;
 import java.util.Locale;
 
 import de.mkoetter.radmon.R;
 import de.mkoetter.radmon.RadmonService;
 import de.mkoetter.radmon.RadmonServiceClient;
-import de.mkoetter.radmon.db.Session;
+import de.mkoetter.radmon.contentprovider.RadmonSessionContentProvider;
+import de.mkoetter.radmon.db.MeasurementTable;
+import de.mkoetter.radmon.db.SessionTable;
 
 /**
  * Created by mk on 02.04.14.
@@ -30,11 +39,38 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
             DecimalFormatSymbols.getInstance(Locale.US));
 
     private RadmonService radmonService = null;
-    private Session currentSession = null;
+    private Uri currentSession = null;
+    private ContentObserver sessionObserver = null;
+
+    private class SessionContentObserver extends ContentObserver {
+
+        public SessionContentObserver(Handler handler) {
+            super(handler);
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            onChange(selfChange, null);
+        }
+
+        @Override
+        public void onChange(boolean selfChange, Uri uri) {
+            // uri might not work (api level 16+)
+
+            Log.d("radmon", "content update, uri: " + uri);
+
+            // get session & latest measurement
+            // FIXME this should be done in an async task
+
+            updateContent();
+        }
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        sessionObserver = new SessionContentObserver(new Handler());
 
         // bind service
         Intent radmonServiceIntent = new Intent(getActivity(), RadmonService.class);
@@ -47,41 +83,15 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
         if (radmonService != null) {
             radmonService.removeServiceClient(this);
         }
+
+        getActivity().unbindService(radmonServiceConnection);
+        getActivity().getContentResolver().unregisterContentObserver(sessionObserver);
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_current, container, false);
         return rootView;
-    }
-
-    @Override
-    public void onUpdateCPM(final Long cpm) {
-
-        getActivity().runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                Double dose = 0d;
-
-                if (currentSession != null) {
-                    Double conversionFactor = currentSession.getConversionFactor();
-                    dose = cpm / conversionFactor;
-
-                    TextView txtCPM = (TextView) getView().findViewById(R.id.txtCPM);
-                    TextView txtDose = (TextView) getView().findViewById(R.id.txtDose);
-                    TextView txtUnit = (TextView) getView().findViewById(R.id.txtDoseUnits);
-                    txtUnit.setText(currentSession.getUnit());
-                    txtCPM.setText(Long.toString(cpm));
-                    txtDose.setText(DECIMAL_FORMAT.format(dose));
-                }
-
-            }
-        });
-    }
-
-    @Override
-    public void onUpdateSession(Session session) {
-        this.currentSession = session;
     }
 
     private ServiceConnection radmonServiceConnection = new ServiceConnection() {
@@ -91,7 +101,14 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
             radmonService = binder.getService();
 
             radmonService.addServiceClient(CurrentFragment.this);
-            // this calls onUpdateSession, onUpdateCPM
+            currentSession = radmonService.getCurrentSession();
+
+            if (currentSession != null) {
+                // register for updates of session & descendants
+                getActivity().getContentResolver().registerContentObserver(currentSession, true, sessionObserver);
+
+                updateContent();
+            }
         }
 
         @Override
@@ -99,4 +116,89 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
             radmonService = null;
         }
     };
+
+    @Override
+    public void onStartSession(Uri session) {
+        currentSession = session;
+
+        // register for updates of session & descendants
+        getActivity().getContentResolver().registerContentObserver(session, true, sessionObserver);
+    }
+
+    @Override
+    public void onStopSession(Uri session) {
+        currentSession = null;
+        getActivity().getContentResolver().unregisterContentObserver(sessionObserver);
+    }
+
+    private Cursor loadSession(Uri session) {
+        if (session != null) {
+            Cursor _session = getActivity().getContentResolver().query(
+                    session,
+                    SessionTable.ALL_COLUMNS,
+                    null, null, null);
+            return _session;
+        }
+
+        return null;
+    }
+
+    private Cursor loadMeasurements(Uri session) {
+        if (session != null) {
+            long sessionId = ContentUris.parseId(session);
+            Uri measurementsUri = RadmonSessionContentProvider.getMeasurementsUri(sessionId);
+
+            Cursor _measurements = getActivity().getContentResolver().query(
+                    measurementsUri,
+                    MeasurementTable.ALL_COLUMNS,
+                    null, null, MeasurementTable.COLUMN_TIME + " DESC");
+            return _measurements;
+        }
+
+        return null;
+    }
+
+
+    private void updateContent() {
+        Cursor session = loadSession(currentSession);
+        Cursor measurements = loadMeasurements(currentSession);
+        try {
+            contentUpdated(session, measurements);
+        } finally {
+            if (session != null) session.close();
+            if (measurements != null) measurements.close();
+        }
+    }
+
+    private void contentUpdated(final Cursor session, final Cursor measurements) {
+
+        getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+
+                if (session != null && session.moveToFirst()) {
+                    int _conversionFactor = session.getColumnIndex(SessionTable.COLUMN_CONVERSION_FACTOR);
+                    int _unit = session.getColumnIndex(SessionTable.COLUMN_UNIT);
+
+                    Double conversionFactor = session.getDouble(_conversionFactor);
+                    String unit = session.getString(_unit);
+
+                    if (measurements != null && measurements.moveToFirst()) {
+                        int _cpm = measurements.getColumnIndex(MeasurementTable.COLUMN_CPM);
+                        long cpm = measurements.getLong(_cpm);
+
+                        Double dose = cpm / conversionFactor;
+
+                        TextView txtCPM = (TextView) getView().findViewById(R.id.txtCPM);
+                        TextView txtDose = (TextView) getView().findViewById(R.id.txtDose);
+                        TextView txtUnit = (TextView) getView().findViewById(R.id.txtDoseUnits);
+                        txtUnit.setText(unit);
+                        txtCPM.setText(Long.toString(cpm));
+                        txtDose.setText(DECIMAL_FORMAT.format(dose));
+                    }
+                }
+
+            }
+        });
+    }
 }

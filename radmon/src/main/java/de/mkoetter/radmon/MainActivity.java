@@ -3,6 +3,7 @@ package de.mkoetter.radmon;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v4.app.FragmentTransaction;
@@ -12,13 +13,12 @@ import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 
-import de.mkoetter.radmon.db.Session;
-
 public class MainActivity extends ActionBarActivity implements RadmonServiceClient, ActionBar.TabListener, ViewPager.OnPageChangeListener {
 
 
     private RadmonService radmonService = null;
-    private Session currentSession = null;
+    private boolean sessionActive = false;
+
 
     private ViewPager viewPager;
     private TabsPagerAdapter mAdapter;
@@ -56,6 +56,8 @@ public class MainActivity extends ActionBarActivity implements RadmonServiceClie
         if (radmonService != null) {
             radmonService.removeServiceClient(this);
         }
+
+        unbindService(radmonServiceConnection);
     }
 
     @Override
@@ -70,7 +72,7 @@ public class MainActivity extends ActionBarActivity implements RadmonServiceClie
         MenuItem connect = menu.findItem(R.id.action_connect);
         if (radmonService != null) {
             connect.setEnabled(true);
-            if (currentSession == null) {
+            if (!sessionActive) {
                 connect.setTitle(R.string.action_connect);
             } else {
                 connect.setTitle(R.string.action_disconnect);
@@ -104,23 +106,12 @@ public class MainActivity extends ActionBarActivity implements RadmonServiceClie
 
     private void toggleConnect() {
         if (radmonService != null) {
-            if (currentSession != null) {
-                // disconnect / stop
-                radmonService.stopSession(currentSession);
+            if (sessionActive) {
+                radmonService.stopSession();
             } else {
-                // connect / start
                 radmonService.startSession();
             }
         }
-    }
-
-    public void onUpdateCPM(final Long cpm) {
-    }
-
-    @Override
-    public void onUpdateSession(final Session session) {
-        currentSession = session;
-        supportInvalidateOptionsMenu();
     }
 
     private ServiceConnection radmonServiceConnection = new ServiceConnection() {
@@ -130,7 +121,9 @@ public class MainActivity extends ActionBarActivity implements RadmonServiceClie
             radmonService = binder.getService();
 
             radmonService.addServiceClient(MainActivity.this);
-            // this calls onUpdateSession, onUpdateCPM
+            sessionActive = radmonService.getCurrentSession() != null;
+
+            supportInvalidateOptionsMenu();
         }
 
         @Override
@@ -168,5 +161,17 @@ public class MainActivity extends ActionBarActivity implements RadmonServiceClie
 
     @Override
     public void onPageScrollStateChanged(int state) {
+    }
+
+    @Override
+    public void onStartSession(Uri session) {
+        sessionActive = true;
+        supportInvalidateOptionsMenu();
+    }
+
+    @Override
+    public void onStopSession(Uri session) {
+        sessionActive = false;
+        supportInvalidateOptionsMenu();
     }
 }

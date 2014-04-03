@@ -4,18 +4,21 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.ContentUris;
+import android.content.ContentValues;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
-import de.mkoetter.radmon.db.Session;
-import de.mkoetter.radmon.db.SessionDataSource;
+import de.mkoetter.radmon.contentprovider.RadmonSessionContentProvider;
+import de.mkoetter.radmon.db.MeasurementTable;
+import de.mkoetter.radmon.db.SessionTable;
 import de.mkoetter.radmon.device.CPMDevice;
 import de.mkoetter.radmon.device.ConnectionStatus;
 import de.mkoetter.radmon.device.DeviceClient;
@@ -31,8 +34,7 @@ public class RadmonService extends Service implements DeviceClient {
     private DeviceFactory deviceFactory;
     private CPMDevice cpmDevice = null;
 
-    private SessionDataSource sessionDataSource;
-    private Session currentSession = null;
+    private Uri currentSession = null;
     private Long currentCPM = null;
 
     private List<RadmonServiceClient> serviceClients;
@@ -48,7 +50,6 @@ public class RadmonService extends Service implements DeviceClient {
     @Override
     public void onCreate() {
         notificationManager = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
-        sessionDataSource = new SessionDataSource(this);
         deviceFactory = new DeviceFactory(this);
 
         Intent mainActivity = new Intent(this, MainActivity.class);
@@ -95,13 +96,17 @@ public class RadmonService extends Service implements DeviceClient {
         notificationManager.notify(ID_NOTIFICATION, getServiceNotification("Current CPM: " + cpm));
         currentCPM = cpm;
         if (currentSession != null) {
-            // TODO add location
-            sessionDataSource.addMeasurement(currentSession.getId(),
-                    new Date(), cpm, null);
-        }
+            long sessionId = ContentUris.parseId(currentSession);
 
-        for (RadmonServiceClient client : serviceClients) {
-            client.onUpdateCPM(cpm);
+            // TODO add location
+            ContentValues values = new ContentValues();
+            values.put(MeasurementTable.COLUMN_SESSION_ID, sessionId);
+            values.put(MeasurementTable.COLUMN_TIME, System.currentTimeMillis());
+            values.put(MeasurementTable.COLUMN_CPM, cpm);
+
+            getContentResolver().insert(
+                    RadmonSessionContentProvider.getMeasurementsUri(sessionId),
+                    values);
         }
     }
 
@@ -122,14 +127,18 @@ public class RadmonService extends Service implements DeviceClient {
             if (currentSession == null) {
                 startForeground(ID_NOTIFICATION, getServiceNotification("Starting session..."));
 
-                long sessionId = sessionDataSource.createSession(new Date(),
-                        cpmDevice.getDeviceName(),
-                        cpmDevice.getConversionFactor(),
-                        cpmDevice.getUnit());
-                currentSession = sessionDataSource.getSession(sessionId);
+                ContentValues values = new ContentValues();
+                values.put(SessionTable.COLUMN_START_TIME, System.currentTimeMillis());
+                values.put(SessionTable.COLUMN_DEVICE, cpmDevice.getDeviceName());
+                values.put(SessionTable.COLUMN_CONVERSION_FACTOR, cpmDevice.getConversionFactor());
+                values.put(SessionTable.COLUMN_UNIT, cpmDevice.getUnit());
+
+                currentSession = getContentResolver().insert(
+                        RadmonSessionContentProvider.getSessionsUri(),
+                        values);
 
                 for (RadmonServiceClient client : serviceClients) {
-                    client.onUpdateSession(currentSession);
+                    client.onStartSession(currentSession);
                 }
 
                 cpmDevice.connect(this);
@@ -142,7 +151,7 @@ public class RadmonService extends Service implements DeviceClient {
         }
     }
 
-    public void stopSession(Session session) {
+    public void stopSession() {
         if (cpmDevice != null) {
             cpmDevice.disconnect();
             cpmDevice = null;
@@ -150,16 +159,17 @@ public class RadmonService extends Service implements DeviceClient {
 
         if (currentSession != null) {
             // TODO finalize session
-            currentSession = null;
             for (RadmonServiceClient client : serviceClients) {
-                client.onUpdateSession(null);
+                client.onStopSession(currentSession);
             }
+
+            currentSession = null;
         }
 
         stopForeground(true);
     }
 
-    public Session getCurrentSession() {
+    public Uri getCurrentSession() {
         return currentSession;
     }
 
@@ -167,10 +177,6 @@ public class RadmonService extends Service implements DeviceClient {
 
         if (!serviceClients.contains(serviceClient))
             serviceClients.add(serviceClient);
-
-        // update client once
-        serviceClient.onUpdateSession(currentSession);
-        serviceClient.onUpdateCPM(currentCPM);
     }
 
     public synchronized void removeServiceClient(RadmonServiceClient serviceClient) {

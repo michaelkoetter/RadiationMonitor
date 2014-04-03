@@ -1,12 +1,11 @@
 package de.mkoetter.radmon;
 
-import de.mkoetter.radmon.db.Session;
+import android.net.Uri;
 
 /**
  * Created by Michael on 31.03.14.
  */
 public interface RadmonServiceClient {
-    public void onUpdateCPM(Long cpm);
-    public void onUpdateSession(Session session);
-
+    public void onStartSession(Uri session);
+    public void onStopSession(Uri session);
 }

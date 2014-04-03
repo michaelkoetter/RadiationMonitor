@@ -18,7 +18,12 @@ public class SessionTable {
     public static final String COLUMN_UNIT = "unit";
 
     public static final String[] ALL_COLUMNS = {
-            COLUMN_ID, COLUMN_START_TIME, COLUMN_END_TIME, COLUMN_DEVICE, COLUMN_CONVERSION_FACTOR, COLUMN_UNIT
+            COLUMN_ID,
+            COLUMN_START_TIME,
+            COLUMN_END_TIME,
+            COLUMN_DEVICE,
+            COLUMN_CONVERSION_FACTOR,
+            COLUMN_UNIT
     };
 
     private static final String TABLE_SESSION_CREATE = "CREATE TABLE " +

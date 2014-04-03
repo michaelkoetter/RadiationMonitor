@@ -19,6 +19,18 @@ public class MeasurementTable {
     public static final String COLUMN_ACCURACY = "radius";
     public static final String COLUMN_FIX_TIME = "fix_time";
 
+    public static final String[] ALL_COLUMNS = {
+            COLUMN_ID,
+            COLUMN_SESSION_ID,
+            COLUMN_TIME,
+            COLUMN_CPM,
+            COLUMN_LATITUDE,
+            COLUMN_LONGITUDE,
+            COLUMN_ALTITUDE,
+            COLUMN_ACCURACY,
+            COLUMN_FIX_TIME
+    };
+
     private static final String TABLE_MEASUREMENT_CREATE = "CREATE TABLE " +
             TABLE_NAME + " (" +
             COLUMN_ID + " INTEGER PRIMARY KEY, " +

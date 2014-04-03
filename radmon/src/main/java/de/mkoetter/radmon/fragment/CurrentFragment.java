@@ -16,10 +16,17 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import com.jjoe64.graphview.BarGraphView;
+import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.GraphViewSeries;
+import com.jjoe64.graphview.LineGraphView;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -41,6 +48,9 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
     private RadmonService radmonService = null;
     private Uri currentSession = null;
     private ContentObserver sessionObserver = null;
+
+    private GraphView cpmGraphView = null;
+    private GraphViewSeries cpmGraphViewSeries = null;
 
     private class SessionContentObserver extends ContentObserver {
 
@@ -78,6 +88,17 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
     }
 
     @Override
+    public void onViewCreated(View view, Bundle savedInstanceState) {
+        cpmGraphViewSeries = new GraphViewSeries(new GraphView.GraphViewData[0]);
+
+        cpmGraphView = new BarGraphView(getActivity(),"");
+        cpmGraphView.addSeries(cpmGraphViewSeries);
+
+        LinearLayout graphViewContainer = (LinearLayout) view.findViewById(R.id.cpm_graph);
+        graphViewContainer.addView(cpmGraphView);
+    }
+
+    @Override
     public void onDestroy() {
         super.onDestroy();
         if (radmonService != null) {
@@ -106,7 +127,6 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
             if (currentSession != null) {
                 // register for updates of session & descendants
                 getActivity().getContentResolver().registerContentObserver(currentSession, true, sessionObserver);
-
                 updateContent();
             }
         }
@@ -143,7 +163,7 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
         return null;
     }
 
-    private Cursor loadMeasurements(Uri session) {
+    private Cursor loadMeasurements(Uri session, boolean descending) {
         if (session != null) {
             long sessionId = ContentUris.parseId(session);
             Uri measurementsUri = RadmonSessionContentProvider.getMeasurementsUri(sessionId);
@@ -151,7 +171,7 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
             Cursor _measurements = getActivity().getContentResolver().query(
                     measurementsUri,
                     MeasurementTable.ALL_COLUMNS,
-                    null, null, MeasurementTable.COLUMN_TIME + " DESC");
+                    null, null, MeasurementTable.COLUMN_TIME + (descending ? " DESC" : " ASC"));
             return _measurements;
         }
 
@@ -161,7 +181,7 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
 
     private void updateContent() {
         Cursor session = loadSession(currentSession);
-        Cursor measurements = loadMeasurements(currentSession);
+        Cursor measurements = loadMeasurements(currentSession, true);
         try {
             contentUpdated(session, measurements);
         } finally {
@@ -185,7 +205,9 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
 
                     if (measurements != null && measurements.moveToFirst()) {
                         int _cpm = measurements.getColumnIndex(MeasurementTable.COLUMN_CPM);
+                        int _time = measurements.getColumnIndex(MeasurementTable.COLUMN_TIME);
                         long cpm = measurements.getLong(_cpm);
+                        long time = measurements.getLong(_time);
 
                         Double dose = cpm / conversionFactor;
 
@@ -195,6 +217,10 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
                         txtUnit.setText(unit);
                         txtCPM.setText(Long.toString(cpm));
                         txtDose.setText(DECIMAL_FORMAT.format(dose));
+
+                        GraphView.GraphViewData data = new GraphView.GraphViewData(time, cpm);
+                        cpmGraphViewSeries.appendData(data, false, 30);
+                        cpmGraphView.redrawAll();
                     }
                 }
 

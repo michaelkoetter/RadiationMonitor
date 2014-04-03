@@ -20,13 +20,17 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.jjoe64.graphview.BarGraphView;
+import com.jjoe64.graphview.CustomLabelFormatter;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.GraphViewSeries;
 import com.jjoe64.graphview.LineGraphView;
 
+import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -44,6 +48,14 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
 
     private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("#0.00",
             DecimalFormatSymbols.getInstance(Locale.US));
+
+    private static final DecimalFormat Y_LABEL_FORMAT = new DecimalFormat("#0.0",
+            DecimalFormatSymbols.getInstance(Locale.US));
+
+    private static final DateFormat X_LABEL_FORMAT = new SimpleDateFormat("hh:mm:ss");
+
+    // TODO make this a preference
+    private static final int MEASUREMENTS_LIMIT = 30; // ~ 5 minutes at 10s interval
 
     private RadmonService radmonService = null;
     private Uri currentSession = null;
@@ -69,44 +81,62 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
 
             Log.d("radmon", "content update, uri: " + uri);
 
-            // get session & latest measurement
-            // FIXME this should be done in an async task
-
-            updateContent();
+            // get session & latest measurements
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    updateContent(1); // limit to one measurement
+                }
+            }).start();
         }
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         sessionObserver = new SessionContentObserver(new Handler());
-
-        // bind service
-        Intent radmonServiceIntent = new Intent(getActivity(), RadmonService.class);
-        getActivity().bindService(radmonServiceIntent, radmonServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         cpmGraphViewSeries = new GraphViewSeries(new GraphView.GraphViewData[0]);
-
         cpmGraphView = new BarGraphView(getActivity(),"");
         cpmGraphView.addSeries(cpmGraphViewSeries);
+        cpmGraphView.setCustomLabelFormatter(new CustomLabelFormatter() {
+            @Override
+            public String formatLabel(double v, boolean xvalue) {
+                if (xvalue) {
+                    return X_LABEL_FORMAT.format(new Date(Double.valueOf(v).longValue()));
+                } else {
+                    return Y_LABEL_FORMAT.format(v);
+                }
+            }
+        });
+        cpmGraphView.setManualYMinBound(0d);
 
         LinearLayout graphViewContainer = (LinearLayout) view.findViewById(R.id.cpm_graph);
         graphViewContainer.addView(cpmGraphView);
     }
 
     @Override
-    public void onDestroy() {
-        super.onDestroy();
+    public void onPause() {
+        super.onPause();
+        getActivity().getContentResolver().unregisterContentObserver(sessionObserver);
+
         if (radmonService != null) {
             radmonService.removeServiceClient(this);
         }
 
         getActivity().unbindService(radmonServiceConnection);
-        getActivity().getContentResolver().unregisterContentObserver(sessionObserver);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        // bind service
+        Intent radmonServiceIntent = new Intent(getActivity(), RadmonService.class);
+        getActivity().bindService(radmonServiceIntent, radmonServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
     @Override
@@ -123,11 +153,12 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
 
             radmonService.addServiceClient(CurrentFragment.this);
             currentSession = radmonService.getCurrentSession();
+            cpmGraphViewSeries.resetData(new GraphView.GraphViewData[0]);
 
             if (currentSession != null) {
                 // register for updates of session & descendants
                 getActivity().getContentResolver().registerContentObserver(currentSession, true, sessionObserver);
-                updateContent();
+                updateContent(MEASUREMENTS_LIMIT);
             }
         }
 
@@ -141,8 +172,10 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
     public void onStartSession(Uri session) {
         currentSession = session;
 
-        // register for updates of session & descendants
+        // (re)register for updates of session & descendants
+        getActivity().getContentResolver().unregisterContentObserver(sessionObserver);
         getActivity().getContentResolver().registerContentObserver(session, true, sessionObserver);
+        updateContent(MEASUREMENTS_LIMIT);
     }
 
     @Override
@@ -163,15 +196,21 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
         return null;
     }
 
-    private Cursor loadMeasurements(Uri session, boolean descending) {
+    private Cursor loadMeasurements(Uri session, int limit) {
         if (session != null) {
             long sessionId = ContentUris.parseId(session);
-            Uri measurementsUri = RadmonSessionContentProvider.getMeasurementsUri(sessionId);
+            Uri measurementsUri = RadmonSessionContentProvider.getMeasurementsUri(sessionId)
+                    .buildUpon().appendQueryParameter(
+                            RadmonSessionContentProvider.PARAM_LIMIT, Integer.toString(limit))
+                    .build();
+
+            Log.d("radmon", "measurements query uri: " + measurementsUri);
 
             Cursor _measurements = getActivity().getContentResolver().query(
                     measurementsUri,
                     MeasurementTable.ALL_COLUMNS,
-                    null, null, MeasurementTable.COLUMN_TIME + (descending ? " DESC" : " ASC"));
+                    null, null,
+                    MeasurementTable.COLUMN_TIME + " DESC");
             return _measurements;
         }
 
@@ -179,52 +218,59 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
     }
 
 
-    private void updateContent() {
-        Cursor session = loadSession(currentSession);
-        Cursor measurements = loadMeasurements(currentSession, true);
-        try {
-            contentUpdated(session, measurements);
-        } finally {
-            if (session != null) session.close();
-            if (measurements != null) measurements.close();
-        }
-    }
-
-    private void contentUpdated(final Cursor session, final Cursor measurements) {
+    private void updateContent(int limit) {
+        final Cursor session = loadSession(currentSession);
+        final Cursor measurements = loadMeasurements(currentSession, limit);
 
         getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
-
-                if (session != null && session.moveToFirst()) {
-                    int _conversionFactor = session.getColumnIndex(SessionTable.COLUMN_CONVERSION_FACTOR);
-                    int _unit = session.getColumnIndex(SessionTable.COLUMN_UNIT);
-
-                    Double conversionFactor = session.getDouble(_conversionFactor);
-                    String unit = session.getString(_unit);
-
-                    if (measurements != null && measurements.moveToFirst()) {
-                        int _cpm = measurements.getColumnIndex(MeasurementTable.COLUMN_CPM);
-                        int _time = measurements.getColumnIndex(MeasurementTable.COLUMN_TIME);
-                        long cpm = measurements.getLong(_cpm);
-                        long time = measurements.getLong(_time);
-
-                        Double dose = cpm / conversionFactor;
-
-                        TextView txtCPM = (TextView) getView().findViewById(R.id.txtCPM);
-                        TextView txtDose = (TextView) getView().findViewById(R.id.txtDose);
-                        TextView txtUnit = (TextView) getView().findViewById(R.id.txtDoseUnits);
-                        txtUnit.setText(unit);
-                        txtCPM.setText(Long.toString(cpm));
-                        txtDose.setText(DECIMAL_FORMAT.format(dose));
-
-                        GraphView.GraphViewData data = new GraphView.GraphViewData(time, cpm);
-                        cpmGraphViewSeries.appendData(data, false, 30);
-                        cpmGraphView.redrawAll();
-                    }
+                try {
+                    contentUpdated(session, measurements);
+                } finally {
+                    if (session != null) session.close();
+                    if (measurements != null) measurements.close();
                 }
-
             }
         });
+    }
+
+    private void contentUpdated(final Cursor session, final Cursor measurements) {
+        final int _conversionFactor = session.getColumnIndex(SessionTable.COLUMN_CONVERSION_FACTOR);
+        final int _unit = session.getColumnIndex(SessionTable.COLUMN_UNIT);
+        final int _cpm = measurements.getColumnIndex(MeasurementTable.COLUMN_CPM);
+        final int _time = measurements.getColumnIndex(MeasurementTable.COLUMN_TIME);
+
+        TextView txtCPM = (TextView) getView().findViewById(R.id.txtCPM);
+        TextView txtDose = (TextView) getView().findViewById(R.id.txtDose);
+        TextView txtUnit = (TextView) getView().findViewById(R.id.txtDoseUnits);
+
+        if (session != null && session.moveToFirst()) {
+
+            Double conversionFactor = session.getDouble(_conversionFactor);
+            String unit = session.getString(_unit);
+
+            if (measurements != null && measurements.moveToFirst()) {
+                // first record is the latest
+                long cpm = measurements.getLong(_cpm);
+                long time = measurements.getLong(_time);
+
+                Double dose = cpm / conversionFactor;
+
+                txtUnit.setText(unit);
+                txtCPM.setText(Long.toString(cpm));
+                txtDose.setText(DECIMAL_FORMAT.format(dose));
+
+                measurements.moveToLast();
+                do {
+                    cpm = measurements.getLong(_cpm);
+                    time = measurements.getLong(_time);
+                    GraphView.GraphViewData data = new GraphView.GraphViewData(time, cpm);
+                    cpmGraphViewSeries.appendData(data, false, MEASUREMENTS_LIMIT);
+                } while (measurements.moveToPrevious());
+
+                cpmGraphView.redrawAll();
+            }
+        }
     }
 }

@@ -33,6 +33,8 @@ public class RadmonSessionContentProvider extends ContentProvider {
     public static final String CONTENT_TYPE_MEASUREMENTS = ContentResolver.CURSOR_DIR_BASE_TYPE + "/radmon_measurement";
     public static final String CONTENT_TYPE_MEASUREMENTS_ID = ContentResolver.CURSOR_ITEM_BASE_TYPE + "/radmon_measurement";
 
+    public static final String PARAM_LIMIT = "limit";
+
     // uri matcher
     private static final int URI_SESSIONS = 10;
     private static final int URI_SESSIONS_ID = 20;
@@ -58,6 +60,7 @@ public class RadmonSessionContentProvider extends ContentProvider {
     @Override
     public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
         SQLiteQueryBuilder queryBuilder = new SQLiteQueryBuilder();
+        String limit = uri.getQueryParameter(PARAM_LIMIT);
         int uriType = uriMatcher.match(uri);
 
         switch (uriType) {
@@ -79,7 +82,7 @@ public class RadmonSessionContentProvider extends ContentProvider {
         checkColumns(projection, uriType);
 
         SQLiteDatabase db = database.getWritableDatabase();
-        Cursor cursor = queryBuilder.query(db, projection, selection, selectionArgs, null, null, sortOrder);
+        Cursor cursor = queryBuilder.query(db, projection, selection, selectionArgs, null, null, sortOrder, limit);
         cursor.setNotificationUri(getContext().getContentResolver(), uri);
 
         return cursor;

@@ -11,6 +11,7 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
+import android.util.Log;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -35,7 +36,10 @@ public class RadmonService extends Service implements DeviceClient {
     private CPMDevice cpmDevice = null;
 
     private Uri currentSession = null;
-    private Long currentCPM = null;
+
+    // accumulation:
+    private long lastCpmTime = 0;
+    private double totalCounts = 0;
 
     private List<RadmonServiceClient> serviceClients;
 
@@ -94,7 +98,18 @@ public class RadmonService extends Service implements DeviceClient {
     @Override
     public void onUpdateCPM(final long cpm) {
         notificationManager.notify(ID_NOTIFICATION, getServiceNotification("Current CPM: " + cpm));
-        currentCPM = cpm;
+
+        // update accumulated values
+        if (lastCpmTime > 0) {
+            long diff = System.currentTimeMillis() - lastCpmTime;
+            double actualCounts = cpm * ((double)diff / 60000); // estimated counts in interval
+            totalCounts += actualCounts;
+
+            Log.d("radmon", "accumulation: cpm = " + cpm + " actualCounts = " + actualCounts + " totalCounts = " + totalCounts);
+        }
+
+        lastCpmTime = System.currentTimeMillis();
+
         if (currentSession != null) {
             long sessionId = ContentUris.parseId(currentSession);
 

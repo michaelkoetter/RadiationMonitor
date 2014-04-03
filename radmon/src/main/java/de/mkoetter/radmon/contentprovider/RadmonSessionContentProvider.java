@@ -131,8 +131,27 @@ public class RadmonSessionContentProvider extends ContentProvider {
     }
 
     @Override
-    public int update(Uri uri, ContentValues contentValues, String s, String[] strings) {
-        return 0;
+    public int update(Uri uri, ContentValues contentValues, String selection, String[] selectionArgs) {
+        int uriType = uriMatcher.match(uri);
+        SQLiteDatabase db = database.getWritableDatabase();
+
+        int updatedRows = 0;
+
+        switch (uriType) {
+            case URI_SESSIONS_ID:
+                long sessionId = ContentUris.parseId(uri);
+                updatedRows = db.update(SessionTable.TABLE_NAME,
+                        contentValues,
+                        SessionTable.COLUMN_ID + "=" + sessionId,
+                        null);
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid URI for update: " + uri);
+        }
+
+        getContext().getContentResolver().notifyChange(uri, null);
+
+        return updatedRows;
     }
 
     private long getIdFromPath(Uri uri, int index) {

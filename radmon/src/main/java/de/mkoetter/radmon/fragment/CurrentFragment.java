@@ -52,7 +52,7 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
     private static final DecimalFormat Y_LABEL_FORMAT = new DecimalFormat("#0.0",
             DecimalFormatSymbols.getInstance(Locale.US));
 
-    private static final DateFormat X_LABEL_FORMAT = new SimpleDateFormat("hh:mm:ss");
+    private static final DateFormat X_LABEL_FORMAT = new SimpleDateFormat("HH:mm:ss");
 
     // TODO make this a preference
     private static final int MEASUREMENTS_LIMIT = 30; // ~ 5 minutes at 10s interval

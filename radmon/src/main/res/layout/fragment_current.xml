@@ -72,6 +72,33 @@
 
             </TableRow>
 
+            <TableRow
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:gravity="right"
+                android:paddingTop="@dimen/default_gap">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceLarge"
+                    android:text="0.0"
+                    android:id="@+id/txtAccumulatedDose"
+                    android:layout_column="1"
+                    android:layout_gravity="bottom|right"
+                    android:paddingEnd="@dimen/default_gap"
+                    android:paddingStart="@dimen/default_gap"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceLarge"
+                    android:text="\u2211 µSv"
+                    android:id="@+id/txtAccumulatedDoseUnits"
+                    android:layout_column="2"
+                    android:layout_gravity="bottom" />
+            </TableRow>
+
         </TableLayout>
 
         <LinearLayout

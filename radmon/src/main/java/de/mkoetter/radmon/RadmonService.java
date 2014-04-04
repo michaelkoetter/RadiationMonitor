@@ -113,15 +113,23 @@ public class RadmonService extends Service implements DeviceClient {
         if (currentSession != null) {
             long sessionId = ContentUris.parseId(currentSession);
 
+            // update session
+            ContentValues session = new ContentValues();
+            session.put(SessionTable.COLUMN_END_TIME, System.currentTimeMillis());
+            session.put(SessionTable.COLUMN_ACCUMULATED_DOSE,
+                    Double.valueOf(totalCounts).longValue());
+            getContentResolver().update(currentSession, session, null, null);
+
+            // add measurement
             // TODO add location
-            ContentValues values = new ContentValues();
-            values.put(MeasurementTable.COLUMN_SESSION_ID, sessionId);
-            values.put(MeasurementTable.COLUMN_TIME, System.currentTimeMillis());
-            values.put(MeasurementTable.COLUMN_CPM, cpm);
+            ContentValues measurement = new ContentValues();
+            measurement.put(MeasurementTable.COLUMN_SESSION_ID, sessionId);
+            measurement.put(MeasurementTable.COLUMN_TIME, System.currentTimeMillis());
+            measurement.put(MeasurementTable.COLUMN_CPM, cpm);
 
             getContentResolver().insert(
                     RadmonSessionContentProvider.getMeasurementsUri(sessionId),
-                    values);
+                    measurement);
         }
     }
 

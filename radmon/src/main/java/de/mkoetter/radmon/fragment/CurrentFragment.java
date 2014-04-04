@@ -23,15 +23,14 @@ import com.jjoe64.graphview.BarGraphView;
 import com.jjoe64.graphview.CustomLabelFormatter;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.GraphViewSeries;
-import com.jjoe64.graphview.LineGraphView;
+
+import org.w3c.dom.Text;
 
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 
 import de.mkoetter.radmon.R;
@@ -52,21 +51,21 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
     private static final DecimalFormat Y_LABEL_FORMAT = new DecimalFormat("#0.0",
             DecimalFormatSymbols.getInstance(Locale.US));
 
-    private static final DateFormat X_LABEL_FORMAT = new SimpleDateFormat("HH:mm:ss");
+    private static final DateFormat TIME_FORMAT = new SimpleDateFormat("HH:mm:ss");
 
     // TODO make this a preference
     private static final int MEASUREMENTS_LIMIT = 30; // ~ 5 minutes at 10s interval
 
     private RadmonService radmonService = null;
     private Uri currentSession = null;
-    private ContentObserver sessionObserver = null;
+    private ContentObserver measurementsObserver = null;
 
     private GraphView cpmGraphView = null;
     private GraphViewSeries cpmGraphViewSeries = null;
 
-    private class SessionContentObserver extends ContentObserver {
+    private class MeasurementsContentObserver extends ContentObserver {
 
-        public SessionContentObserver(Handler handler) {
+        public MeasurementsContentObserver(Handler handler) {
             super(handler);
         }
 
@@ -77,24 +76,28 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
 
         @Override
         public void onChange(boolean selfChange, Uri uri) {
-            // uri might not work (api level 16+)
+            // FIXME uri might not work (api level 16+)
 
-            Log.d("radmon", "content update, uri: " + uri);
+            // FIXME somehow we get onChange events for ancestors too ?!?!
 
-            // get session & latest measurements
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    updateContent(1); // limit to one measurement
-                }
-            }).start();
+            if (uri.getPath().endsWith("measurements")) {
+                Log.d("radmon", "content update, uri: " + uri);
+
+                // get session & latest measurements
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        updateContent(1); // limit to one measurement
+                    }
+                }).start();
+            }
         }
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        sessionObserver = new SessionContentObserver(new Handler());
+        measurementsObserver = new MeasurementsContentObserver(new Handler());
     }
 
     @Override
@@ -106,7 +109,7 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
             @Override
             public String formatLabel(double v, boolean xvalue) {
                 if (xvalue) {
-                    return X_LABEL_FORMAT.format(new Date(Double.valueOf(v).longValue()));
+                    return TIME_FORMAT.format(new Date(Double.valueOf(v).longValue()));
                 } else {
                     return Y_LABEL_FORMAT.format(v);
                 }
@@ -121,7 +124,7 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
     @Override
     public void onPause() {
         super.onPause();
-        getActivity().getContentResolver().unregisterContentObserver(sessionObserver);
+        getActivity().getContentResolver().unregisterContentObserver(measurementsObserver);
 
         if (radmonService != null) {
             radmonService.removeServiceClient(this);
@@ -157,7 +160,7 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
 
             if (currentSession != null) {
                 // register for updates of session & descendants
-                getActivity().getContentResolver().registerContentObserver(currentSession, true, sessionObserver);
+                registerMeasurementsContentObserver(currentSession);
                 updateContent(MEASUREMENTS_LIMIT);
             }
         }
@@ -173,17 +176,24 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
         currentSession = session;
 
         // (re)register for updates of session & descendants
-        getActivity().getContentResolver().unregisterContentObserver(sessionObserver);
-        getActivity().getContentResolver().registerContentObserver(session, true, sessionObserver);
+        getActivity().getContentResolver().unregisterContentObserver(measurementsObserver);
+        registerMeasurementsContentObserver(currentSession);
         updateContent(MEASUREMENTS_LIMIT);
     }
 
     @Override
     public void onStopSession(Uri session) {
         currentSession = null;
-        getActivity().getContentResolver().unregisterContentObserver(sessionObserver);
+        getActivity().getContentResolver().unregisterContentObserver(measurementsObserver);
     }
 
+    private void registerMeasurementsContentObserver(Uri session) {
+        Uri measurementsUri = RadmonSessionContentProvider.getMeasurementsUri(ContentUris.parseId(session));
+        getActivity().getContentResolver().registerContentObserver(
+                measurementsUri,
+                true,
+                measurementsObserver);
+    }
     private Cursor loadSession(Uri session) {
         if (session != null) {
             Cursor _session = getActivity().getContentResolver().query(
@@ -238,22 +248,31 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
     private void contentUpdated(final Cursor session, final Cursor measurements) {
         final int _conversionFactor = session.getColumnIndex(SessionTable.COLUMN_CONVERSION_FACTOR);
         final int _unit = session.getColumnIndex(SessionTable.COLUMN_UNIT);
+        final int _accumulated = session.getColumnIndex(SessionTable.COLUMN_ACCUMULATED_DOSE);
+
         final int _cpm = measurements.getColumnIndex(MeasurementTable.COLUMN_CPM);
         final int _time = measurements.getColumnIndex(MeasurementTable.COLUMN_TIME);
 
         TextView txtCPM = (TextView) getView().findViewById(R.id.txtCPM);
         TextView txtDose = (TextView) getView().findViewById(R.id.txtDose);
         TextView txtUnit = (TextView) getView().findViewById(R.id.txtDoseUnits);
+        TextView txtAccumulatedDose = (TextView) getView().findViewById(R.id.txtAccumulatedDose);
 
         if (session != null && session.moveToFirst()) {
 
             Double conversionFactor = session.getDouble(_conversionFactor);
             String unit = session.getString(_unit);
+            Long accumulated = session.isNull(_accumulated) ? null : session.getLong(_accumulated);
+
+            if (accumulated != null) {
+                Double accumulatedDose = accumulated / conversionFactor;
+                txtAccumulatedDose.setText(DECIMAL_FORMAT.format(accumulatedDose));
+            }
 
             if (measurements != null && measurements.moveToFirst()) {
                 // first record is the latest
                 long cpm = measurements.getLong(_cpm);
-                long time = measurements.getLong(_time);
+                long time;
 
                 Double dose = cpm / conversionFactor;
 

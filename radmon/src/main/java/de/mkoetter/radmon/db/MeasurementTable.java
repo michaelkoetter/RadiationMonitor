@@ -44,8 +44,16 @@ public class MeasurementTable {
             COLUMN_FIX_TIME + " INTEGER, " +
             "FOREIGN KEY (" + COLUMN_SESSION_ID + ") REFERENCES session(_id) );";
 
+    private static final String INDEX_SESSION_ID_CREATE =
+            "CREATE INDEX idx_measurement_session_id ON " + TABLE_NAME + " (" + COLUMN_SESSION_ID + ");";
+
+    private static final String INDEX_TIME_CREATE =
+            "CREATE INDEX idx_measurement_time ON " + TABLE_NAME + " (" + COLUMN_TIME + ");";
+
     public static void onCreate(SQLiteDatabase sqLiteDatabase) {
         sqLiteDatabase.execSQL(TABLE_MEASUREMENT_CREATE);
+        sqLiteDatabase.execSQL(INDEX_SESSION_ID_CREATE);
+        sqLiteDatabase.execSQL(INDEX_TIME_CREATE);
     }
 
     public static void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i2) {

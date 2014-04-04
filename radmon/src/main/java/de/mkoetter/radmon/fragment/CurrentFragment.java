@@ -265,7 +265,7 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
             Long accumulated = session.isNull(_accumulated) ? null : session.getLong(_accumulated);
 
             if (accumulated != null) {
-                Double accumulatedDose = accumulated / conversionFactor;
+                Double accumulatedDose = accumulated / conversionFactor / 60d;
                 txtAccumulatedDose.setText(DECIMAL_FORMAT.format(accumulatedDose));
             }
 

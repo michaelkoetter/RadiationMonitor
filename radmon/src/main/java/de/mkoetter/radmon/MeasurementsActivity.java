@@ -113,6 +113,8 @@ public class MeasurementsActivity extends ActionBarActivity implements LoaderMan
                         writeHeader(session, measurements, out);
                         writeMeasurements(measurements, out);
 
+                        out.close();
+
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {

@@ -102,7 +102,7 @@ public class MeasurementsActivity extends ActionBarActivity implements LoaderMan
                 Long sessionId = session.getLong(_sessionId);
 
                 // save in documents dir
-                File documents = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+                File documents = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
                 final File csv = new File(documents, "radmon-" + sessionId + ".csv");
                 if (documents != null) {
                     documents.mkdirs();

@@ -17,7 +17,10 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import java.text.DateFormat;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.Date;
+import java.util.Locale;
 
 import de.mkoetter.radmon.R;
 import de.mkoetter.radmon.contentprovider.RadmonSessionContentProvider;
@@ -35,6 +38,9 @@ public class MeasurementsFragment extends ListFragment implements LoaderManager.
     private static final DateFormat DATE_FORMAT = DateFormat.getDateTimeInstance(
             DateFormat.SHORT, DateFormat.SHORT
     );
+
+    private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("#0.00",
+            DecimalFormatSymbols.getInstance(Locale.US));
 
     @Override
     public void onCreate(Bundle savedInstanceState) {

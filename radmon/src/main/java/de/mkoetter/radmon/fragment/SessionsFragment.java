@@ -18,8 +18,11 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import java.text.DateFormat;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 import de.mkoetter.radmon.MeasurementsActivity;
 import de.mkoetter.radmon.R;
@@ -34,6 +37,9 @@ public class SessionsFragment extends ListFragment implements LoaderManager.Load
     private static final int SESSION_LOADER = 0;
     private SimpleCursorAdapter adapter = null;
 
+    private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("#0.00",
+            DecimalFormatSymbols.getInstance(Locale.US));
+
     private static final DateFormat DATE_FORMAT = DateFormat.getDateTimeInstance(
             DateFormat.SHORT, DateFormat.SHORT
     );
@@ -42,14 +48,14 @@ public class SessionsFragment extends ListFragment implements LoaderManager.Load
             SessionTable.COLUMN_ID,
             SessionTable.COLUMN_START_TIME,
             SessionTable.COLUMN_END_TIME,
-            SessionTable.COLUMN_DEVICE
+            SessionTable.COLUMN_ACCUMULATED_DOSE
     };
 
     private final int[] to = new int[]{
             R.id.txtSessionId,
             R.id.txtStartTime,
             R.id.txtEndTime,
-            R.id.txtDevice
+            R.id.txtAccumulatedDose
     };
 
     @Override
@@ -77,6 +83,13 @@ public class SessionsFragment extends ListFragment implements LoaderManager.Load
                     }
                     return true;
 
+                } else if (SessionTable.COLUMN_ACCUMULATED_DOSE.equals(cursor.getColumnName(columnIndex))) {
+                    int _conversionFactor = cursor.getColumnIndex(SessionTable.COLUMN_CONVERSION_FACTOR);
+                    Double conversionFactor = cursor.getDouble(_conversionFactor);
+                    Long accumulatedCPM = cursor.getLong(columnIndex);
+
+                    ((TextView)view).setText(DECIMAL_FORMAT.format(accumulatedCPM.doubleValue() / conversionFactor / 60d));
+                    return true;
                 }
 
                 return false;

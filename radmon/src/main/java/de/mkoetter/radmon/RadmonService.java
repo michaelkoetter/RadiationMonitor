@@ -11,6 +11,7 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationManagerCompat;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -27,7 +28,7 @@ import de.mkoetter.radmon.device.DeviceFactory;
 
 public class RadmonService extends Service implements DeviceClient {
 
-    private NotificationManager notificationManager;
+    private NotificationManagerCompat notificationManager;
     private NotificationCompat.Builder notificationBuilder;
 
     private static final int ID_NOTIFICATION = 1;
@@ -53,22 +54,22 @@ public class RadmonService extends Service implements DeviceClient {
 
     @Override
     public void onCreate() {
-        notificationManager = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+        notificationManager = NotificationManagerCompat.from(this);
         deviceFactory = new DeviceFactory(this);
 
-        Intent mainActivity = new Intent(this, MainActivity.class);
-        mainActivity.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        Intent viewIntent = new Intent(this, MainActivity.class);
+        viewIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
-        PendingIntent mainActivityIntent = PendingIntent.getActivity(
+        PendingIntent viewPendingIntent = PendingIntent.getActivity(
                 this,
                 0,
-                mainActivity,
+                viewIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT);
 
         notificationBuilder = new NotificationCompat.Builder(this)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.app_name))
-            .setContentIntent(mainActivityIntent);
+            .setContentIntent(viewPendingIntent);
 
         serviceClients = new ArrayList<RadmonServiceClient>();
     }

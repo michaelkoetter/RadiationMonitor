@@ -1,7 +1,6 @@
 package de.mkoetter.radmon;
 
 import android.app.Notification;
-import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.ContentUris;
@@ -9,11 +8,20 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.util.Log;
 import android.widget.Toast;
+
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.PutDataMapRequest;
+import com.google.android.gms.wearable.PutDataRequest;
+import com.google.android.gms.wearable.Wearable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,10 +34,19 @@ import de.mkoetter.radmon.device.ConnectionStatus;
 import de.mkoetter.radmon.device.DeviceClient;
 import de.mkoetter.radmon.device.DeviceFactory;
 
-public class RadmonService extends Service implements DeviceClient {
+public class RadmonService extends Service implements DeviceClient,
+        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
+
+    private static final String DATA_PATH = "/radmon/data";
+    private static final String DATA_KEY_CPM = "cpm";
+    private static final String DATA_KEY_DOSE_RATE = "dose_rate";
+    private static final String DATA_KEY_DOSE_ACC = "dose_acc";
+    private static final long NO_DATA = -1;
+
 
     private NotificationManagerCompat notificationManager;
     private NotificationCompat.Builder notificationBuilder;
+    private GoogleApiClient googleApiClient;
 
     private static final int ID_NOTIFICATION = 1;
 
@@ -44,6 +61,8 @@ public class RadmonService extends Service implements DeviceClient {
 
     private List<RadmonServiceClient> serviceClients;
 
+
+
     public class LocalBinder extends Binder {
         public RadmonService getService() {
             return RadmonService.this;
@@ -54,7 +73,14 @@ public class RadmonService extends Service implements DeviceClient {
 
     @Override
     public void onCreate() {
+        googleApiClient = new GoogleApiClient.Builder(this)
+                .addApi(Wearable.API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
+
         notificationManager = NotificationManagerCompat.from(this);
+
         deviceFactory = new DeviceFactory(this);
 
         Intent viewIntent = new Intent(this, MainActivity.class);
@@ -77,6 +103,9 @@ public class RadmonService extends Service implements DeviceClient {
     @Override
     public void onDestroy() {
         stopForeground(true);
+
+        disconnectWearable();
+
         super.onDestroy();
     }
 
@@ -131,6 +160,8 @@ public class RadmonService extends Service implements DeviceClient {
             getContentResolver().insert(
                     RadmonSessionContentProvider.getMeasurementsUri(sessionId),
                     measurement);
+
+            updateWearable(cpm);
         }
     }
 
@@ -149,6 +180,8 @@ public class RadmonService extends Service implements DeviceClient {
         cpmDevice = deviceFactory.getConfiguredDevice();
         if (cpmDevice != null) {
             if (currentSession == null) {
+                connectWearable();
+
                 startForeground(ID_NOTIFICATION, getServiceNotification("Starting session..."));
 
                 ContentValues values = new ContentValues();
@@ -191,6 +224,7 @@ public class RadmonService extends Service implements DeviceClient {
         }
 
         stopForeground(true);
+        disconnectWearable();
     }
 
     public Uri getCurrentSession() {
@@ -205,5 +239,47 @@ public class RadmonService extends Service implements DeviceClient {
 
     public synchronized void removeServiceClient(RadmonServiceClient serviceClient) {
         serviceClients.remove(serviceClient);
+    }
+
+    private void updateWearable(long cpm) {
+        // update wearable data
+        if (googleApiClient.isConnected()) {
+            PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(DATA_PATH);
+            putDataMapRequest.getDataMap().putLong(DATA_KEY_CPM, cpm);
+            PutDataRequest putDataRequest = putDataMapRequest.asPutDataRequest();
+            PendingResult<DataApi.DataItemResult> pendingResult =
+                    Wearable.DataApi.putDataItem(googleApiClient, putDataRequest);
+        }
+    }
+
+    private void connectWearable() {
+        if (!googleApiClient.isConnected()) {
+            googleApiClient.connect();
+        }
+    }
+
+    private void disconnectWearable() {
+        updateWearable(NO_DATA);
+
+        if (googleApiClient.isConnected()) {
+            googleApiClient.disconnect();
+        }
+    }
+
+    // GoogleApiClient callbacks
+
+    @Override
+    public void onConnected(Bundle bundle) {
+
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+
     }
 }

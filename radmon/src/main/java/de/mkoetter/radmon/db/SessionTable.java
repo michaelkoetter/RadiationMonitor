@@ -1,8 +1,6 @@
 package de.mkoetter.radmon.db;
 
-import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
 
 /**
  * Created by Michael on 31.03.14.

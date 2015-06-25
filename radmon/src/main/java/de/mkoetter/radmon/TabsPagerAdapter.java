@@ -12,8 +12,11 @@ import de.mkoetter.radmon.fragment.SessionsFragment;
  */
 public class TabsPagerAdapter extends FragmentPagerAdapter {
 
-    public TabsPagerAdapter(FragmentManager fm) {
+    String[] tabTitles;
+
+    public TabsPagerAdapter(String[] tabTitles, FragmentManager fm) {
         super(fm);
+        this.tabTitles = tabTitles;
     }
 
     @Override
@@ -29,6 +32,11 @@ public class TabsPagerAdapter extends FragmentPagerAdapter {
 
     @Override
     public int getCount() {
-        return 2;
+        return tabTitles.length;
+    }
+
+    @Override
+    public CharSequence getPageTitle(int position) {
+        return tabTitles[position];
     }
 }

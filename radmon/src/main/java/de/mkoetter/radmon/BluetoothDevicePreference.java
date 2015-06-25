@@ -5,19 +5,9 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.res.TypedArray;
-import android.os.Bundle;
 import android.preference.DialogPreference;
-import android.preference.PreferenceActivity;
 import android.util.AttributeSet;
-import android.widget.ArrayAdapter;
-import android.widget.ListAdapter;
-import android.widget.ListView;
-import android.widget.Toast;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Created by Michael on 13.03.14.

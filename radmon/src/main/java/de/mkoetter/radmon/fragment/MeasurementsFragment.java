@@ -10,9 +10,7 @@ import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
 import android.support.v4.widget.SimpleCursorAdapter;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -23,9 +21,7 @@ import java.util.Date;
 import java.util.Locale;
 
 import de.mkoetter.radmon.R;
-import de.mkoetter.radmon.contentprovider.RadmonSessionContentProvider;
 import de.mkoetter.radmon.db.MeasurementTable;
-import de.mkoetter.radmon.db.SessionTable;
 
 /**
  * Created by mk on 02.04.14.

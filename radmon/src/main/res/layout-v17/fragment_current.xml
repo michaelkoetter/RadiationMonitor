@@ -22,16 +22,18 @@
             <TableRow
                 android:layout_width="fill_parent"
                 android:layout_height="fill_parent"
-                android:gravity="end">
+                android:gravity="right">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="0.0"
                     android:id="@+id/txtDose"
-                    android:textSize="50sp"
-                    android:layout_gravity="bottom|end"
-                    android:layout_column="1"/>
+                    android:textSize="50dp"
+                    android:layout_gravity="bottom|right"
+                    android:layout_column="1"
+                    android:paddingEnd="@dimen/default_gap"
+                    android:paddingStart="@dimen/default_gap" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -46,7 +48,7 @@
             <TableRow
                 android:layout_width="fill_parent"
                 android:layout_height="fill_parent"
-                android:gravity="end">
+                android:gravity="right">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -54,8 +56,10 @@
                     android:textAppearance="?android:attr/textAppearanceLarge"
                     android:text="0"
                     android:id="@+id/txtCPM"
-                    android:layout_gravity="bottom|end"
-                    android:layout_column="1"/>
+                    android:layout_gravity="bottom|right"
+                    android:layout_column="1"
+                    android:paddingEnd="@dimen/default_gap"
+                    android:paddingStart="@dimen/default_gap" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -71,7 +75,7 @@
             <TableRow
                 android:layout_width="fill_parent"
                 android:layout_height="fill_parent"
-                android:gravity="end"
+                android:gravity="right"
                 android:paddingTop="@dimen/default_gap">
 
                 <TextView
@@ -81,7 +85,9 @@
                     android:text="0.0"
                     android:id="@+id/txtAccumulatedDose"
                     android:layout_column="1"
-                    android:layout_gravity="bottom|end"/>
+                    android:layout_gravity="bottom|right"
+                    android:paddingEnd="@dimen/default_gap"
+                    android:paddingStart="@dimen/default_gap"/>
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -100,7 +106,7 @@
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
             android:id="@+id/cpm_graph"
-            android:layout_margin="10dp" />
+            android:layout_margin="10dp"></LinearLayout>
 
     </LinearLayout>
 

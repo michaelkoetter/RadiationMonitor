@@ -7,7 +7,7 @@ import android.os.Environment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
@@ -24,7 +24,7 @@ import de.mkoetter.radmon.util.CSVUtil;
 /**
  * Created by mk on 03.04.14.
  */
-public class MeasurementsActivity extends ActionBarActivity implements LoaderManager.LoaderCallbacks<Cursor> {
+public class MeasurementsActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor> {
 
     private static final int SESSION_LOADER = 0;
     private static final int MEASUREMENTS_LOADER = 1;

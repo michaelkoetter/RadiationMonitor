@@ -33,10 +33,10 @@ public class MeasurementsActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.measurements, menu);
+        return true;
+    }
 
-        MenuItem shareMenu = menu.findItem(R.id.action_share);
-        shareActionProvider = (ShareActionProvider) MenuItemCompat.getActionProvider(shareMenu);
-
+    private Intent getShareIntent() {
         Intent shareIntent = new Intent(Intent.ACTION_SEND);
         shareIntent.setType("text/csv");
         Uri sessionUri = getIntent().getData();
@@ -44,8 +44,17 @@ public class MeasurementsActivity extends AppCompatActivity {
         shareIntent.putExtra(Intent.EXTRA_STREAM, shareUri);
         shareIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
-        shareActionProvider.setShareIntent(shareIntent);
+        return shareIntent;
+    }
 
-        return true;
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.action_share) {
+            startActivity(
+                    Intent.createChooser(getShareIntent(),
+                            getResources().getText(R.string.action_share))
+            );
+        }
+        return super.onOptionsItemSelected(item);
     }
 }

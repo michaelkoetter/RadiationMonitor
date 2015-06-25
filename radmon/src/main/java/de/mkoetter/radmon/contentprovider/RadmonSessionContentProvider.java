@@ -9,13 +9,22 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteQueryBuilder;
 import android.net.Uri;
+import android.os.Bundle;
+import android.os.ParcelFileDescriptor;
+import android.util.Log;
 
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 
 import de.mkoetter.radmon.db.MeasurementTable;
 import de.mkoetter.radmon.db.SessionDatabaseOpenHelper;
 import de.mkoetter.radmon.db.SessionTable;
+import de.mkoetter.radmon.util.CSVUtil;
 
 /**
  * A content provider for Radmon session data and measurements.
@@ -31,6 +40,7 @@ public class RadmonSessionContentProvider extends ContentProvider {
     public static final String CONTENT_TYPE_SESSIONS = ContentResolver.CURSOR_DIR_BASE_TYPE + "/radmon_session";
     public static final String CONTENT_TYPE_SESSIONS_ID = ContentResolver.CURSOR_ITEM_BASE_TYPE + "/radmon_session";
     public static final String CONTENT_TYPE_MEASUREMENTS = ContentResolver.CURSOR_DIR_BASE_TYPE + "/radmon_measurement";
+    public static final String CONTENT_TYPE_MEASUREMENTS_CSV = "text/csv";
     public static final String CONTENT_TYPE_MEASUREMENTS_ID = ContentResolver.CURSOR_ITEM_BASE_TYPE + "/radmon_measurement";
 
     public static final String PARAM_LIMIT = "limit";
@@ -39,6 +49,7 @@ public class RadmonSessionContentProvider extends ContentProvider {
     private static final int URI_SESSIONS = 10;
     private static final int URI_SESSIONS_ID = 20;
     private static final int URI_MEASUREMENTS = 30;
+    private static final int URI_MEASUREMENTS_CSV = 50;
     private static final int URI_MEASUREMENTS_ID = 40;
 
     private static final UriMatcher uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
@@ -46,6 +57,7 @@ public class RadmonSessionContentProvider extends ContentProvider {
         uriMatcher.addURI(AUTHORITY, "sessions", URI_SESSIONS);
         uriMatcher.addURI(AUTHORITY, "sessions/#", URI_SESSIONS_ID);
         uriMatcher.addURI(AUTHORITY, "sessions/#/measurements", URI_MEASUREMENTS);
+        uriMatcher.addURI(AUTHORITY, "sessions/#/measurements.csv", URI_MEASUREMENTS_CSV);
         uriMatcher.addURI(AUTHORITY, "sessions/#/measurements/#", URI_MEASUREMENTS_ID);
     }
 
@@ -59,6 +71,8 @@ public class RadmonSessionContentProvider extends ContentProvider {
 
     @Override
     public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
+        String[] originalProjection = Arrays.copyOf(projection, projection.length);
+
         SQLiteQueryBuilder queryBuilder = new SQLiteQueryBuilder();
         String limit = uri.getQueryParameter(PARAM_LIMIT);
         int uriType = uriMatcher.match(uri);
@@ -69,6 +83,8 @@ public class RadmonSessionContentProvider extends ContentProvider {
             case URI_SESSIONS:
                 queryBuilder.setTables(SessionTable.TABLE_NAME);
                 break;
+            case URI_MEASUREMENTS_CSV:
+                return new CSVFileInfoCursorWrapper(projection);
             case URI_MEASUREMENTS_ID:
                 queryBuilder.appendWhere(MeasurementTable.COLUMN_ID + "=" + getIdFromPath(uri, 3));
             case URI_MEASUREMENTS:
@@ -79,13 +95,57 @@ public class RadmonSessionContentProvider extends ContentProvider {
                 throw new IllegalArgumentException("Unknown URI: " + uri);
         }
 
+
         checkColumns(projection, uriType);
 
         SQLiteDatabase db = database.getWritableDatabase();
         Cursor cursor = queryBuilder.query(db, projection, selection, selectionArgs, null, null, sortOrder, limit);
         cursor.setNotificationUri(getContext().getContentResolver(), uri);
 
+
         return cursor;
+    }
+
+    private void writeHeader(Cursor session, Cursor measurements, OutputStream out) throws IOException {
+        int _sessionId = session.getColumnIndex(SessionTable.COLUMN_ID);
+        int _conversionFactor = session.getColumnIndex(SessionTable.COLUMN_CONVERSION_FACTOR);
+
+        StringBuffer sbHeader = new StringBuffer("# Session: ")
+                .append(session.getLong(_sessionId))
+                .append("\n")
+                .append("# CPM Conversion Factor: ")
+                .append(session.getDouble(_conversionFactor))
+                .append("\n");
+
+        out.write(sbHeader.toString().getBytes());
+    }
+
+    private void writeMeasurements(Cursor measurements, OutputStream out) throws IOException {
+        measurements.moveToFirst();
+        CSVUtil.writeHeader(measurements, out);
+        do {
+            CSVUtil.writeData(measurements, null, out);
+        } while (measurements.moveToNext());
+    }
+
+    @Override
+    public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
+        return openPipeHelper(uri, null, null, null, new PipeDataWriter<Object>() {
+            @Override
+            public void writeDataToPipe(ParcelFileDescriptor output, Uri uri, String mimeType, Bundle opts, Object args) {
+                Uri contentUri = Uri.parse(uri.toString().replace(".csv", ""));
+                Cursor measurements = query(contentUri, MeasurementTable.ALL_COLUMNS, null, null, null);
+
+                try {
+                    OutputStream out = new FileOutputStream(output.getFileDescriptor());
+                    writeMeasurements(measurements, out);
+                    out.close();
+                } catch (IOException e) {
+                    Log.e("RadmonContentProvider", "Error writing CSV data", e);
+                }
+            }
+        });
+
     }
 
     @Override
@@ -98,6 +158,8 @@ public class RadmonSessionContentProvider extends ContentProvider {
                 return CONTENT_TYPE_SESSIONS_ID;
             case URI_MEASUREMENTS:
                 return CONTENT_TYPE_MEASUREMENTS;
+            case URI_MEASUREMENTS_CSV:
+                return CONTENT_TYPE_MEASUREMENTS_CSV;
             case URI_MEASUREMENTS_ID:
                 return CONTENT_TYPE_MEASUREMENTS_ID;
         }
@@ -168,6 +230,7 @@ public class RadmonSessionContentProvider extends ContentProvider {
                 validColumns = SessionTable.ALL_COLUMNS;
                 break;
             case URI_MEASUREMENTS:
+            case URI_MEASUREMENTS_CSV:
             case URI_MEASUREMENTS_ID:
                 validColumns = MeasurementTable.ALL_COLUMNS;
                 break;

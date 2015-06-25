@@ -1,6 +1,7 @@
 package de.mkoetter.radmon.db;
 
 import android.database.sqlite.SQLiteDatabase;
+import android.provider.MediaStore;
 
 /**
  * Created by Michael on 31.03.14.

@@ -65,8 +65,10 @@ public class MainActivity extends AppCompatActivity implements RadmonServiceClie
             connect.setEnabled(true);
             if (!sessionActive) {
                 connect.setTitle(R.string.action_connect);
+                connect.setIcon(R.drawable.ic_play_dark);
             } else {
                 connect.setTitle(R.string.action_disconnect);
+                connect.setIcon(R.drawable.ic_pause_dark);
             }
         } else {
             connect.setEnabled(false);

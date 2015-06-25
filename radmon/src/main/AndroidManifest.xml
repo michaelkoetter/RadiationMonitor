@@ -54,7 +54,8 @@
         <provider
             android:authorities="de.mkoetter.radmon.contentprovider"
             android:name=".contentprovider.RadmonSessionContentProvider"
-            android:exported="false" />
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 
 </manifest>

@@ -5,7 +5,8 @@
 
     <item android:id="@+id/action_connect"
         android:title="@string/action_connect"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="ifRoom"
+        android:icon="@drawable/ic_play_dark" />
 
 
     <item android:id="@+id/action_settings"

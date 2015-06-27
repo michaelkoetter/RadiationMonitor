@@ -54,7 +54,9 @@ public class RadmonDataListenerService extends WearableListenerService {
             DataItem item = event.getDataItem();
             if (DATA_PATH.equals(item.getUri().getPath())) {
                 DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
-                updateData(dataMap.getLong(DATA_KEY_CPM, -1));
+                updateData(
+                        dataMap.getLong(DATA_KEY_CPM, -1),
+                        dataMap.getDouble(DATA_KEY_DOSE_RATE, Double.NaN));
             }
         }
     }
@@ -64,7 +66,7 @@ public class RadmonDataListenerService extends WearableListenerService {
         super.onPeerDisconnected(peer);
 
         // FIXME should broadcast something else
-        updateData(-1);
+        updateData(-1, Double.NaN);
     }
 
     @Override
@@ -72,14 +74,15 @@ public class RadmonDataListenerService extends WearableListenerService {
         super.onChannelClosed(channel, closeReason, appSpecificErrorCode);
 
         // FIXME should broadcast something else
-        updateData(-1);
+        updateData(-1, Double.NaN);
     }
 
-    private void updateData(long cpm) {
+    private void updateData(long cpm, double doseRate) {
         // broadcast data
         Intent broadcastUpdateData = new Intent();
         broadcastUpdateData.setAction(BROADCAST_UPDATE_DATA);
         broadcastUpdateData.putExtra(DATA_KEY_CPM, cpm);
+        broadcastUpdateData.putExtra(DATA_KEY_DOSE_RATE, doseRate);
 
         sendBroadcast(broadcastUpdateData);
     }

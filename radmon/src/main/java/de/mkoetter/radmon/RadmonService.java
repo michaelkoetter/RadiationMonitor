@@ -246,6 +246,11 @@ public class RadmonService extends Service implements DeviceClient,
         if (googleApiClient.isConnected()) {
             PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(DATA_PATH);
             putDataMapRequest.getDataMap().putLong(DATA_KEY_CPM, cpm);
+            if (cpmDevice != null) {
+                double doseRate = cpm / cpmDevice.getConversionFactor();
+                putDataMapRequest.getDataMap().putDouble(DATA_KEY_DOSE_RATE, doseRate);
+            }
+
             PutDataRequest putDataRequest = putDataMapRequest.asPutDataRequest();
             PendingResult<DataApi.DataItemResult> pendingResult =
                     Wearable.DataApi.putDataItem(googleApiClient, putDataRequest);

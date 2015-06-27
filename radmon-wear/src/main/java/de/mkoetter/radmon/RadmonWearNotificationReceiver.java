@@ -37,16 +37,17 @@ public class RadmonWearNotificationReceiver extends BroadcastReceiver {
 
         NotificationManager notificationManager = ((NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE));
         long cpm = intent.getLongExtra(RadmonDataListenerService.DATA_KEY_CPM, NO_DATA);
+        double doseRate = intent.getDoubleExtra(RadmonDataListenerService.DATA_KEY_DOSE_RATE, Double.NaN);
 
         if (cpm != NO_DATA) {
             SpannableStringBuilder sb = new SpannableStringBuilder()
                     // FIXME use actual value
-                    .append(context.getString(R.string.dose_rate_microsievert, 123.456f),
+                    .append(context.getString(R.string.dose_rate_microsievert, doseRate),
                             new TextAppearanceSpan(context, R.style.SummaryDoseRateText), 0)
 
                     .append("\n\n", new TextAppearanceSpan(context, R.style.SummarySpacing), 0)
 
-                    .append(context.getString(R.string.cpm, 123456),
+                    .append(context.getString(R.string.cpm, cpm),
                             new TextAppearanceSpan(context, R.style.SummaryCPMText), 0);
 
 

@@ -17,14 +17,13 @@ import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.Wearable;
 import com.google.android.gms.wearable.WearableListenerService;
 
-public class OngoingNotificationListenerService extends WearableListenerService {
+public class RadmonDataListenerService extends WearableListenerService {
     private static final String DATA_PATH = "/radmon/data";
-    private static final String DATA_KEY_CPM = "cpm";
-    private static final String DATA_KEY_DOSE_RATE = "dose_rate";
-    private static final String DATA_KEY_DOSE_ACC = "dose_acc";
 
-    private static final int ID_NOTIFICATION = 1;
-    private static final long NO_DATA = -1;
+    public static final String DATA_KEY_CPM = "cpm";
+    public static final String DATA_KEY_DOSE_RATE = "dose_rate";
+
+    public static final String BROADCAST_UPDATE_DATA = "de.mkoetter.radmon.UPDATE_DATA";
 
     private GoogleApiClient googleApiClient;
 
@@ -42,7 +41,6 @@ public class OngoingNotificationListenerService extends WearableListenerService 
 
         notificationBuilder = new NotificationCompat.Builder(this)
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("Radiation Monitor")
                 .setOngoing(true);
 
         notificationManager = NotificationManagerCompat.from(this);
@@ -56,11 +54,7 @@ public class OngoingNotificationListenerService extends WearableListenerService 
             DataItem item = event.getDataItem();
             if (DATA_PATH.equals(item.getUri().getPath())) {
                 DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
-                updateData(
-                        dataMap.getLong(DATA_KEY_CPM, -1),
-                        dataMap.getDouble(DATA_KEY_DOSE_RATE, Double.NaN),
-                        dataMap.getDouble(DATA_KEY_DOSE_ACC, Double.NaN));
-
+                updateData(dataMap.getLong(DATA_KEY_CPM, -1));
             }
         }
     }
@@ -69,25 +63,24 @@ public class OngoingNotificationListenerService extends WearableListenerService 
     public void onPeerDisconnected(Node peer) {
         super.onPeerDisconnected(peer);
 
-        notificationManager.cancel(ID_NOTIFICATION);
+        // FIXME should broadcast something else
+        updateData(-1);
     }
 
     @Override
     public void onChannelClosed(Channel channel, int closeReason, int appSpecificErrorCode) {
         super.onChannelClosed(channel, closeReason, appSpecificErrorCode);
 
-        notificationManager.cancel(ID_NOTIFICATION);
+        // FIXME should broadcast something else
+        updateData(-1);
     }
 
-    private void updateData(long cpm, double doseRate, double doseAccumulated) {
-        if (cpm == NO_DATA) {
-            notificationManager.cancel(ID_NOTIFICATION);
-        } else {
-            Notification notification = notificationBuilder
-                    .setContentText("Current CPM: " + cpm)
-                    .build();
+    private void updateData(long cpm) {
+        // broadcast data
+        Intent broadcastUpdateData = new Intent();
+        broadcastUpdateData.setAction(BROADCAST_UPDATE_DATA);
+        broadcastUpdateData.putExtra(DATA_KEY_CPM, cpm);
 
-            notificationManager.notify(ID_NOTIFICATION, notification);
-        }
+        sendBroadcast(broadcastUpdateData);
     }
 }

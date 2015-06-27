@@ -9,23 +9,24 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@android:style/Theme.DeviceDefault" >
+
         <meta-data
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
 
-        <service android:name=".OngoingNotificationListenerService" >
+        <service android:name=".RadmonDataListenerService" >
             <intent-filter>
                 <action android:name="com.google.android.gms.wearable.BIND_LISTENER" />
             </intent-filter>
         </service>
 
-        <activity
-            android:name=".MainActivity"
-            android:label="@string/title_activity_main" >
+        <receiver
+            android:name=".RadmonWearNotificationReceiver"
+            android:exported="false" >
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
+                <action android:name="de.mkoetter.radmon.UPDATE_DATA" />
             </intent-filter>
-        </activity>
+        </receiver>
     </application>
 
 </manifest>

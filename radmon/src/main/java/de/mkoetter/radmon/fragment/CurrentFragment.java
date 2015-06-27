@@ -244,12 +244,6 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
     }
 
     private void contentUpdated(final Cursor session, final Cursor measurements) {
-        final int _conversionFactor = session.getColumnIndex(SessionTable.COLUMN_CONVERSION_FACTOR);
-        final int _unit = session.getColumnIndex(SessionTable.COLUMN_UNIT);
-        final int _accumulated = session.getColumnIndex(SessionTable.COLUMN_ACCUMULATED_DOSE);
-
-        final int _cpm = measurements.getColumnIndex(MeasurementTable.COLUMN_CPM);
-        final int _time = measurements.getColumnIndex(MeasurementTable.COLUMN_TIME);
 
         TextView txtCPM = (TextView) getView().findViewById(R.id.txtCPM);
         TextView txtDose = (TextView) getView().findViewById(R.id.txtDose);
@@ -257,6 +251,10 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
         TextView txtAccumulatedDose = (TextView) getView().findViewById(R.id.txtAccumulatedDose);
 
         if (session != null && session.moveToFirst()) {
+            final int _conversionFactor = session.getColumnIndex(SessionTable.COLUMN_CONVERSION_FACTOR);
+            final int _unit = session.getColumnIndex(SessionTable.COLUMN_UNIT);
+            final int _accumulated = session.getColumnIndex(SessionTable.COLUMN_ACCUMULATED_DOSE);
+
 
             Double conversionFactor = session.getDouble(_conversionFactor);
             String unit = session.getString(_unit);
@@ -268,6 +266,9 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
             }
 
             if (measurements != null && measurements.moveToFirst()) {
+                final int _cpm = measurements.getColumnIndex(MeasurementTable.COLUMN_CPM);
+                final int _time = measurements.getColumnIndex(MeasurementTable.COLUMN_TIME);
+
                 // first record is the latest
                 long cpm = measurements.getLong(_cpm);
                 long time;

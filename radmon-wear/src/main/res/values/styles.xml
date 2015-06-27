@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="SummaryDoseRateText">
-        <item name="android:textSize">28.0sp</item>
-        <item name="android:textColor">#ff212121</item>
+        <item name="android:textSize">32sp</item>
+        <item name="android:textColor">#434343</item>
         <item name="android:fontFamily">sans-serif-condensed-light</item>
     </style>
     <style name="SummaryCPMText">
-        <item name="android:textSize">28.0sp</item>
-        <item name="android:textColor">#ff757575</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">#a2a2a2</item>
         <item name="android:fontFamily">sans-serif-condensed-light</item>
     </style>
     <style name="SummarySpacing">
-        <item name="android:textSize">2.0sp</item>
+        <item name="android:textSize">8.0sp</item>
     </style>
 </resources>

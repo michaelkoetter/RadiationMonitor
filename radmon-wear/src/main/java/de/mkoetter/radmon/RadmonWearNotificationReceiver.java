@@ -6,6 +6,8 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
 import android.support.v4.app.NotificationCompat;
 import android.text.SpannableStringBuilder;
@@ -18,8 +20,18 @@ public class RadmonWearNotificationReceiver extends BroadcastReceiver {
 
     private static final long NO_DATA = -1;
 
+    private Bitmap background = null;
+
     public RadmonWearNotificationReceiver() {
     }
+
+    private synchronized Bitmap getBackground(Context context) {
+        if (background == null) {
+            background = BitmapFactory.decodeResource(context.getResources(), R.drawable.notify_backround);
+        }
+        return background;
+    }
+
     @Override
     public void onReceive(Context context, Intent intent) {
 
@@ -29,19 +41,25 @@ public class RadmonWearNotificationReceiver extends BroadcastReceiver {
         if (cpm != NO_DATA) {
             SpannableStringBuilder sb = new SpannableStringBuilder()
                     // FIXME use actual value
-                    .append(context.getString(R.string.dose_rate_microsievert, 1.234f),
+                    .append(context.getString(R.string.dose_rate_microsievert, 123.456f),
                             new TextAppearanceSpan(context, R.style.SummaryDoseRateText), 0)
 
                     .append("\n\n", new TextAppearanceSpan(context, R.style.SummarySpacing), 0)
 
-                    .append(context.getString(R.string.cpm, cpm),
+                    .append(context.getString(R.string.cpm, 123456),
                             new TextAppearanceSpan(context, R.style.SummaryCPMText), 0);
+
+
+            Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
+                    .setBackground(getBackground(context));
 
             Notification notification = new Notification.Builder(context)
                     .setSmallIcon(R.mipmap.ic_launcher)
                     .setStyle(new Notification.BigTextStyle().bigText(sb))
                     .setOngoing(true)
+                    .extend(wearableExtender)
                     .build();
+
             notificationManager.notify(0, notification);
         } else {
             notificationManager.cancel(0);

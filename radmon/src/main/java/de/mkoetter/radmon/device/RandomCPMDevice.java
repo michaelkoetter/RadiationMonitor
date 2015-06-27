@@ -37,9 +37,9 @@ public class RandomCPMDevice extends AbstractCPMDevice implements Runnable {
                     @Override
                     public void run() {
                         client.onConnectionStatusChange(ConnectionStatus.Connected, "Connected");
-                        scheduler.scheduleAtFixedRate(RandomCPMDevice.this, 5, 10, TimeUnit.SECONDS);
+                        scheduler.scheduleAtFixedRate(RandomCPMDevice.this, 0, 10, TimeUnit.SECONDS);
                     }
-                }, 3, TimeUnit.SECONDS);
+                }, 1, TimeUnit.SECONDS);
             }
         }, 0, TimeUnit.SECONDS);
     }

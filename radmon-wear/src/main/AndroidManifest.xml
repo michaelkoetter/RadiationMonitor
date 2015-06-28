@@ -19,14 +19,6 @@
             </intent-filter>
         </service>
 
-        <receiver
-            android:name=".RadmonWearNotificationReceiver"
-            android:exported="false" >
-            <intent-filter>
-                <action android:name="de.mkoetter.radmon.UPDATE_DATA" />
-            </intent-filter>
-        </receiver>
-
         <activity
             android:name=".NotificationGraphActivity"
             android:allowEmbedded="true"

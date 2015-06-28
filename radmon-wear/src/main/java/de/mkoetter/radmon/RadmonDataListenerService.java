@@ -3,8 +3,11 @@ package de.mkoetter.radmon;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
+import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
 
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.wearable.Channel;
@@ -26,19 +29,33 @@ public class RadmonDataListenerService extends WearableListenerService {
 
     public static final String BROADCAST_UPDATE_DATA = "de.mkoetter.radmon.UPDATE_DATA";
 
+    private static final String TAG = "RadmonDataListenerSvc";
+
+    private RadmonWearNotificationReceiver receiver;
+
     @Override
     public void onCreate() {
         super.onCreate();
 
-        GoogleApiClient googleApiClient = new GoogleApiClient.Builder(this)
-                .addApi(Wearable.API)
-                .build();
-        googleApiClient.connect();
+        receiver = new RadmonWearNotificationReceiver();
+        LocalBroadcastManager.getInstance(this).registerReceiver(receiver, new IntentFilter(BROADCAST_UPDATE_DATA));
+
+        Log.d(TAG, "onCreate");
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(receiver);
+        Log.d(TAG, "onDestroy");
     }
 
     @Override
     public void onDataChanged(DataEventBuffer dataEvents) {
         super.onDataChanged(dataEvents);
+
+        Log.d(TAG, "onDataChanged");
 
         for (DataEvent event : dataEvents) {
             DataItem item = event.getDataItem();
@@ -56,6 +73,8 @@ public class RadmonDataListenerService extends WearableListenerService {
     public void onPeerDisconnected(Node peer) {
         super.onPeerDisconnected(peer);
 
+        Log.d(TAG, "onPeerDisconnected");
+
         // FIXME should broadcast something else
         updateData(-1, Double.NaN, null);
     }
@@ -63,6 +82,8 @@ public class RadmonDataListenerService extends WearableListenerService {
     @Override
     public void onChannelClosed(Channel channel, int closeReason, int appSpecificErrorCode) {
         super.onChannelClosed(channel, closeReason, appSpecificErrorCode);
+
+        Log.d(TAG, "onChannelClosed");
 
         // FIXME should broadcast something else
         updateData(-1, Double.NaN, null);
@@ -76,6 +97,6 @@ public class RadmonDataListenerService extends WearableListenerService {
         broadcastUpdateData.putExtra(DATA_KEY_HISTORY, history);
         broadcastUpdateData.putExtra(DATA_KEY_DOSE_RATE, doseRate);
 
-        sendBroadcast(broadcastUpdateData);
+        LocalBroadcastManager.getInstance(this).sendBroadcast(broadcastUpdateData);
     }
 }

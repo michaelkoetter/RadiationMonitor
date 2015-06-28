@@ -23,80 +23,69 @@ import java.util.Queue;
 public class RadmonWearNotificationReceiver extends BroadcastReceiver {
 
     private static final long NO_DATA = -1;
-    private static final int NOTIFICATION_ID = 1;
 
     private synchronized Bitmap getBackground(Context context) {
         return BitmapFactory.decodeResource(context.getResources(), R.drawable.notify_backround);
     }
 
     @Override
-    public void onReceive(final Context context, final Intent intent) {
+    public void onReceive(Context context, Intent intent) {
 
-        final PendingResult asyncResult = goAsync();
+        NotificationManager notificationManager = ((NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE));
+        long cpm = intent.getLongExtra(RadmonDataListenerService.DATA_KEY_CPM, NO_DATA);
+        long[] history = intent.getLongArrayExtra(RadmonDataListenerService.DATA_KEY_HISTORY);
+        double doseRate = intent.getDoubleExtra(RadmonDataListenerService.DATA_KEY_DOSE_RATE, Double.NaN);
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
+        if (cpm != NO_DATA) {
+            SpannableStringBuilder sb = new SpannableStringBuilder()
+                    // FIXME use actual value
+                    .append(context.getString(R.string.dose_rate_microsievert, doseRate),
+                            new TextAppearanceSpan(context, R.style.SummaryDoseRateText), 0)
 
-                NotificationManager notificationManager = ((NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE));
-                long cpm = intent.getLongExtra(RadmonDataListenerService.DATA_KEY_CPM, NO_DATA);
-                long[] history = intent.getLongArrayExtra(RadmonDataListenerService.DATA_KEY_HISTORY);
-                double doseRate = intent.getDoubleExtra(RadmonDataListenerService.DATA_KEY_DOSE_RATE, Double.NaN);
+                    .append("\n\n", new TextAppearanceSpan(context, R.style.SummarySpacing), 0)
 
-                if (cpm != NO_DATA) {
-                    SpannableStringBuilder sb = new SpannableStringBuilder()
-                            // FIXME use actual value
-                            .append(context.getString(R.string.dose_rate_microsievert, doseRate),
-                                    new TextAppearanceSpan(context, R.style.SummaryDoseRateText), 0)
-
-                            .append("\n\n", new TextAppearanceSpan(context, R.style.SummarySpacing), 0)
-
-                            .append(context.getString(R.string.cpm, cpm),
-                                    new TextAppearanceSpan(context, R.style.SummaryCPMText), 0);
+                    .append(context.getString(R.string.cpm, cpm),
+                            new TextAppearanceSpan(context, R.style.SummaryCPMText), 0);
 
 
-                    Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
-                            .setBackground(getBackground(context));
+            Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
+                    .setBackground(getBackground(context));
 
-                    if (history != null) {
-                        Intent notificationGraphIntent = new Intent(context, NotificationGraphActivity.class);
-                        notificationGraphIntent.putExtra(NotificationGraphActivity.EXTRA_DATA_POINTS, history);
-                        notificationGraphIntent.putExtra(NotificationGraphActivity.EXTRA_TITLE,
-                                context.getString(R.string.history));
-
-
-                        PendingIntent notificationGraphPendingIntent = PendingIntent.getActivity(
-                                context, 0, notificationGraphIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-
-                        Notification notificationGraph = new Notification.Builder(context)
-                                .setSmallIcon(R.mipmap.ic_launcher)
-                                .extend(new Notification.WearableExtender()
-                                        .setHintHideIcon(true)
-                                        .setDisplayIntent(notificationGraphPendingIntent)
-                                        .setCustomSizePreset(Notification.WearableExtender.SIZE_LARGE)
-                                        .setCustomContentHeight(context.getResources().getDimensionPixelSize(R.dimen.GraphNotificationHeight)))
-                                .build();
-
-                        wearableExtender.addPage(notificationGraph);
-                    }
+            if (history != null) {
+                Intent notificationGraphIntent = new Intent(context, NotificationGraphActivity.class);
+                notificationGraphIntent.putExtra(NotificationGraphActivity.EXTRA_DATA_POINTS, history);
+                notificationGraphIntent.putExtra(NotificationGraphActivity.EXTRA_TITLE,
+                        context.getString(R.string.history));
 
 
-                    Notification notification = new Notification.Builder(context)
-                            .setSmallIcon(R.mipmap.ic_launcher)
-                            .setStyle(new Notification.BigTextStyle().bigText(sb))
-                            .setOngoing(true)
-                            .extend(wearableExtender)
-                            .build();
+                PendingIntent notificationGraphPendingIntent = PendingIntent.getActivity(
+                        context, 0, notificationGraphIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
+                Notification notificationGraph = new Notification.Builder(context)
+                        .setSmallIcon(R.mipmap.ic_launcher)
+                        .extend(new Notification.WearableExtender()
+                                .setHintHideIcon(true)
+                                .setDisplayIntent(notificationGraphPendingIntent)
+                                .setCustomSizePreset(Notification.WearableExtender.SIZE_LARGE)
+                                .setCustomContentHeight(context.getResources().getDimensionPixelSize(R.dimen.GraphNotificationHeight)))
+                        .build();
 
-                    notificationManager.notify(NOTIFICATION_ID, notification);
-                } else {
-                    notificationManager.cancel(NOTIFICATION_ID);
-                }
-
-                asyncResult.finish();
+                wearableExtender.addPage(notificationGraph);
             }
-        }).start();
+
+
+            Notification notification = new Notification.Builder(context)
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setStyle(new Notification.BigTextStyle().bigText(sb))
+                    .setOngoing(true)
+                    .extend(wearableExtender)
+                    .build();
+
+
+            notificationManager.notify(0, notification);
+        } else {
+            notificationManager.cancel(0);
+        }
 
     }
 }

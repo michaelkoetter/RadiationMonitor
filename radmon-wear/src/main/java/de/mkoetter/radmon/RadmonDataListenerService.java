@@ -16,12 +16,13 @@ import com.google.android.gms.wearable.DataEventBuffer;
 import com.google.android.gms.wearable.DataItem;
 import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
+import com.google.android.gms.wearable.MessageEvent;
 import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.Wearable;
 import com.google.android.gms.wearable.WearableListenerService;
 
 public class RadmonDataListenerService extends WearableListenerService {
-    private static final String DATA_PATH = "/radmon/data";
+    private static final String DATA_PATH = "/radmon_data";
 
     public static final String DATA_KEY_CPM = "cpm";
     public static final String DATA_KEY_DOSE_RATE = "dose_rate";
@@ -66,6 +67,19 @@ public class RadmonDataListenerService extends WearableListenerService {
                         dataMap.getDouble(DATA_KEY_DOSE_RATE, Double.NaN),
                         dataMap.getLongArray(DATA_KEY_HISTORY));
             }
+        }
+    }
+
+    @Override
+    public void onMessageReceived(MessageEvent messageEvent) {
+        Log.d(TAG, "onMessageReceived: " + messageEvent.getPath());
+
+        if (DATA_PATH.equals(messageEvent.getPath())) {
+            DataMap dataMap = DataMap.fromByteArray(messageEvent.getData());
+            updateData(
+                    dataMap.getLong(DATA_KEY_CPM, -1),
+                    dataMap.getDouble(DATA_KEY_DOSE_RATE, Double.NaN),
+                    dataMap.getLongArray(DATA_KEY_HISTORY));
         }
     }
 

@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
@@ -26,10 +27,14 @@ public class NotificationGraphActivity extends Activity {
     public static final String EXTRA_TITLE = "title";
     public static final String EXTRA_CONTENT = "content";
 
+    private static final String TAG = "NotificationGraphAct";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        Log.d(TAG, "onCreate");
+
         setContentView(R.layout.notification_graph);
 
         long[] dataPoints = getIntent().getLongArrayExtra(EXTRA_DATA_POINTS);

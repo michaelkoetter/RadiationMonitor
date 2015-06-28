@@ -73,7 +73,6 @@ public class RadmonWearNotificationReceiver extends BroadcastReceiver {
                 wearableExtender.addPage(notificationGraph);
             }
 
-
             Notification notification = new Notification.Builder(context)
                     .setSmallIcon(R.mipmap.ic_launcher)
                     .setStyle(new Notification.BigTextStyle().bigText(sb))

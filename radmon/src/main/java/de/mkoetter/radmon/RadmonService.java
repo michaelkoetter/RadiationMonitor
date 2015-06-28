@@ -18,7 +18,11 @@ import android.widget.Toast;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.DataMap;
+import com.google.android.gms.wearable.Node;
+import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
@@ -41,7 +45,7 @@ import de.mkoetter.radmon.device.DeviceFactory;
 public class RadmonService extends Service implements DeviceClient,
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
-    private static final String DATA_PATH = "/radmon/data";
+    private static final String DATA_PATH = "/radmon_data";
     private static final String DATA_KEY_CPM = "cpm";
     private static final String DATA_KEY_DOSE_RATE = "dose_rate";
     private static final String DATA_KEY_DOSE_ACC = "dose_acc";
@@ -262,23 +266,33 @@ public class RadmonService extends Service implements DeviceClient,
         serviceClients.remove(serviceClient);
     }
 
-    private void updateWearable(long cpm) {
+    private void updateWearable(final long cpm) {
         // update wearable data
         if (googleApiClient.isConnected()) {
-            PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(DATA_PATH);
-            putDataMapRequest.getDataMap().putLong(DATA_KEY_CPM, cpm);
-            if (cpmDevice != null) {
-                double doseRate = cpm / cpmDevice.getConversionFactor();
-                putDataMapRequest.getDataMap().putDouble(DATA_KEY_DOSE_RATE, doseRate);
-            }
+            Wearable.NodeApi.getConnectedNodes(googleApiClient).setResultCallback(new ResultCallback<NodeApi.GetConnectedNodesResult>() {
+                @Override
+                public void onResult(NodeApi.GetConnectedNodesResult getConnectedNodesResult) {
+                    for (Node node : getConnectedNodesResult.getNodes()) {
+                        DataMap dataMap = new DataMap();
 
-            if (history != null) {
-                putDataMapRequest.getDataMap().putLongArray(DATA_KEY_HISTORY, history);
-            }
+                        dataMap.putLong(DATA_KEY_CPM, cpm);
 
-            PutDataRequest putDataRequest = putDataMapRequest.asPutDataRequest();
-            PendingResult<DataApi.DataItemResult> pendingResult =
-                    Wearable.DataApi.putDataItem(googleApiClient, putDataRequest);
+                        if (cpmDevice != null) {
+                            double doseRate = cpm / cpmDevice.getConversionFactor();
+                            dataMap.putDouble(DATA_KEY_DOSE_RATE, doseRate);
+                        }
+
+                        if (history != null) {
+                            dataMap.putLongArray(DATA_KEY_HISTORY, history);
+                        }
+
+                        Wearable.MessageApi.sendMessage(googleApiClient,
+                                node.getId(), DATA_PATH, dataMap.toByteArray());
+                    }
+
+                }
+            });
+
         }
     }
 

@@ -16,21 +16,19 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.jjoe64.graphview.DefaultLabelFormatter;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.GridLabelRenderer;
-import com.jjoe64.graphview.helper.DateAsXAxisLabelFormatter;
-import com.jjoe64.graphview.series.BarGraphSeries;
+import com.jjoe64.graphview.series.BaseSeries;
 import com.jjoe64.graphview.series.DataPoint;
+import com.jjoe64.graphview.series.LineGraphSeries;
+import com.jjoe64.graphview.series.Series;
 
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Locale;
 
 import de.mkoetter.radmon.R;
@@ -63,7 +61,7 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
 
     long x = 0;
 
-    private BarGraphSeries<DataPoint> cpmGraphViewSeries = null;
+    private BaseSeries<DataPoint> cpmGraphViewSeries = null;
     GraphView cpmGraphView = null;
 
     private class MeasurementsContentObserver extends ContentObserver {
@@ -105,8 +103,12 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
 
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
-        cpmGraphViewSeries = new BarGraphSeries<>();
-        cpmGraphViewSeries.setColor(getResources().getColor(R.color.ColorPrimaryDark));
+
+        cpmGraphViewSeries = new LineGraphSeries<>();
+        cpmGraphViewSeries.setColor(getResources().getColor(R.color.ColorPrimary));
+
+        ((LineGraphSeries)cpmGraphViewSeries).setBackgroundColor(getResources().getColor(R.color.ColorPrimaryDark));
+        ((LineGraphSeries)cpmGraphViewSeries).setDrawBackground(true);
 
         cpmGraphView = (GraphView) view.findViewById(R.id.cpm_graph);
         cpmGraphView.addSeries(cpmGraphViewSeries);

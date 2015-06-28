@@ -22,28 +22,18 @@ public class RadmonDataListenerService extends WearableListenerService {
 
     public static final String DATA_KEY_CPM = "cpm";
     public static final String DATA_KEY_DOSE_RATE = "dose_rate";
+    public static final String DATA_KEY_HISTORY = "history";
 
     public static final String BROADCAST_UPDATE_DATA = "de.mkoetter.radmon.UPDATE_DATA";
-
-    private GoogleApiClient googleApiClient;
-
-    private NotificationManagerCompat notificationManager;
-    private NotificationCompat.Builder notificationBuilder;
 
     @Override
     public void onCreate() {
         super.onCreate();
 
-        googleApiClient = new GoogleApiClient.Builder(this)
+        GoogleApiClient googleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(Wearable.API)
                 .build();
         googleApiClient.connect();
-
-        notificationBuilder = new NotificationCompat.Builder(this)
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setOngoing(true);
-
-        notificationManager = NotificationManagerCompat.from(this);
     }
 
     @Override
@@ -56,7 +46,8 @@ public class RadmonDataListenerService extends WearableListenerService {
                 DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
                 updateData(
                         dataMap.getLong(DATA_KEY_CPM, -1),
-                        dataMap.getDouble(DATA_KEY_DOSE_RATE, Double.NaN));
+                        dataMap.getDouble(DATA_KEY_DOSE_RATE, Double.NaN),
+                        dataMap.getLongArray(DATA_KEY_HISTORY));
             }
         }
     }
@@ -66,7 +57,7 @@ public class RadmonDataListenerService extends WearableListenerService {
         super.onPeerDisconnected(peer);
 
         // FIXME should broadcast something else
-        updateData(-1, Double.NaN);
+        updateData(-1, Double.NaN, null);
     }
 
     @Override
@@ -74,14 +65,15 @@ public class RadmonDataListenerService extends WearableListenerService {
         super.onChannelClosed(channel, closeReason, appSpecificErrorCode);
 
         // FIXME should broadcast something else
-        updateData(-1, Double.NaN);
+        updateData(-1, Double.NaN, null);
     }
 
-    private void updateData(long cpm, double doseRate) {
+    private void updateData(long cpm, double doseRate, long[] history) {
         // broadcast data
         Intent broadcastUpdateData = new Intent();
         broadcastUpdateData.setAction(BROADCAST_UPDATE_DATA);
         broadcastUpdateData.putExtra(DATA_KEY_CPM, cpm);
+        broadcastUpdateData.putExtra(DATA_KEY_HISTORY, history);
         broadcastUpdateData.putExtra(DATA_KEY_DOSE_RATE, doseRate);
 
         sendBroadcast(broadcastUpdateData);

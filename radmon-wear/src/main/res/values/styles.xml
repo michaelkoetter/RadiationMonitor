@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="SummaryDoseRateText">
-        <item name="android:textSize">32sp</item>
+        <item name="android:textSize">28sp</item>
         <item name="android:textColor">#434343</item>
         <item name="android:fontFamily">sans-serif-condensed-light</item>
     </style>

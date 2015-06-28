@@ -15,21 +15,17 @@ import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
 import android.text.style.TextAppearanceSpan;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Queue;
+
 
 public class RadmonWearNotificationReceiver extends BroadcastReceiver {
 
     private static final long NO_DATA = -1;
 
-    private Bitmap background = null;
-
-    public RadmonWearNotificationReceiver() {
-    }
-
     private synchronized Bitmap getBackground(Context context) {
-        if (background == null) {
-            background = BitmapFactory.decodeResource(context.getResources(), R.drawable.notify_backround);
-        }
-        return background;
+        return BitmapFactory.decodeResource(context.getResources(), R.drawable.notify_backround);
     }
 
     @Override
@@ -37,6 +33,7 @@ public class RadmonWearNotificationReceiver extends BroadcastReceiver {
 
         NotificationManager notificationManager = ((NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE));
         long cpm = intent.getLongExtra(RadmonDataListenerService.DATA_KEY_CPM, NO_DATA);
+        long[] history = intent.getLongArrayExtra(RadmonDataListenerService.DATA_KEY_HISTORY);
         double doseRate = intent.getDoubleExtra(RadmonDataListenerService.DATA_KEY_DOSE_RATE, Double.NaN);
 
         if (cpm != NO_DATA) {
@@ -54,12 +51,36 @@ public class RadmonWearNotificationReceiver extends BroadcastReceiver {
             Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
                     .setBackground(getBackground(context));
 
+            if (history != null) {
+                Intent notificationGraphIntent = new Intent(context, NotificationGraphActivity.class);
+                notificationGraphIntent.putExtra(NotificationGraphActivity.EXTRA_DATA_POINTS, history);
+                notificationGraphIntent.putExtra(NotificationGraphActivity.EXTRA_TITLE,
+                        context.getString(R.string.history));
+
+
+                PendingIntent notificationGraphPendingIntent = PendingIntent.getActivity(
+                        context, 0, notificationGraphIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+                Notification notificationGraph = new Notification.Builder(context)
+                        .setSmallIcon(R.mipmap.ic_launcher)
+                        .extend(new Notification.WearableExtender()
+                                .setHintHideIcon(true)
+                                .setDisplayIntent(notificationGraphPendingIntent)
+                                .setCustomSizePreset(Notification.WearableExtender.SIZE_LARGE)
+                                .setCustomContentHeight(context.getResources().getDimensionPixelSize(R.dimen.GraphNotificationHeight)))
+                        .build();
+
+                wearableExtender.addPage(notificationGraph);
+            }
+
+
             Notification notification = new Notification.Builder(context)
                     .setSmallIcon(R.mipmap.ic_launcher)
                     .setStyle(new Notification.BigTextStyle().bigText(sb))
                     .setOngoing(true)
                     .extend(wearableExtender)
                     .build();
+
 
             notificationManager.notify(0, notification);
         } else {

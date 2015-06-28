@@ -22,6 +22,10 @@ import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
+import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.series.BaseSeries;
+import com.jjoe64.graphview.series.DataPoint;
+import com.jjoe64.graphview.series.LineGraphSeries;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +45,10 @@ public class RadmonService extends Service implements DeviceClient,
     private static final String DATA_KEY_CPM = "cpm";
     private static final String DATA_KEY_DOSE_RATE = "dose_rate";
     private static final String DATA_KEY_DOSE_ACC = "dose_acc";
+    private static final String DATA_KEY_HISTORY = "history";
+
     private static final long NO_DATA = -1;
+    private static final int HISTORY_SIZE = 30;
 
 
     private NotificationManagerCompat notificationManager;
@@ -59,9 +66,14 @@ public class RadmonService extends Service implements DeviceClient,
     private long lastCpmTime = 0;
     private double totalCounts = 0;
 
+    // history
+    private long[] history = new long[HISTORY_SIZE];
+
     private List<RadmonServiceClient> serviceClients;
 
 
+    private GraphView wearableGraphView;
+    private BaseSeries<DataPoint> wearableGraphSeries;
 
     public class LocalBinder extends Binder {
         public RadmonService getService() {
@@ -73,6 +85,11 @@ public class RadmonService extends Service implements DeviceClient,
 
     @Override
     public void onCreate() {
+
+        wearableGraphView = new GraphView(this);
+        wearableGraphSeries = new LineGraphSeries<>();
+        wearableGraphView.addSeries(wearableGraphSeries);
+
         googleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(Wearable.API)
                 .addConnectionCallbacks(this)
@@ -127,6 +144,10 @@ public class RadmonService extends Service implements DeviceClient,
 
     @Override
     public void onUpdateCPM(final long cpm) {
+        // update history
+        System.arraycopy(history, 1, history, 0, HISTORY_SIZE-1);
+        history[HISTORY_SIZE-1] = cpm;
+
         notificationManager.notify(ID_NOTIFICATION, getServiceNotification("Current CPM: " + cpm));
 
         // update accumulated values
@@ -249,6 +270,10 @@ public class RadmonService extends Service implements DeviceClient,
             if (cpmDevice != null) {
                 double doseRate = cpm / cpmDevice.getConversionFactor();
                 putDataMapRequest.getDataMap().putDouble(DATA_KEY_DOSE_RATE, doseRate);
+            }
+
+            if (history != null) {
+                putDataMapRequest.getDataMap().putLongArray(DATA_KEY_HISTORY, history);
             }
 
             PutDataRequest putDataRequest = putDataMapRequest.asPutDataRequest();

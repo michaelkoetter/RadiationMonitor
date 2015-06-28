@@ -6,4 +6,6 @@
     <string name="dose_rate_sievert">%1.2f Sv/h</string>
     <string name="dose_sievert">%1.2f \u2211 Sv</string>
     <string name="cpm">%d CPM</string>
+
+    <string name="history">5 minutes</string>
 </resources>

@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.database.ContentObserver;
 import android.database.Cursor;
+import android.graphics.Paint;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -107,8 +108,17 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
         cpmGraphViewSeries = new LineGraphSeries<>();
         cpmGraphViewSeries.setColor(getResources().getColor(R.color.ColorPrimary));
 
-        ((LineGraphSeries)cpmGraphViewSeries).setBackgroundColor(getResources().getColor(R.color.ColorPrimaryDark));
-        ((LineGraphSeries)cpmGraphViewSeries).setDrawBackground(true);
+        ((LineGraphSeries) cpmGraphViewSeries).setBackgroundColor(getResources().getColor(R.color.GraphBackgroundColor));
+        ((LineGraphSeries) cpmGraphViewSeries).setDrawBackground(true);
+
+        Paint linePaint = new Paint();
+        linePaint.setColor(getResources().getColor(R.color.GraphLineColor));
+        linePaint.setStyle(Paint.Style.STROKE);
+        linePaint.setStrokeJoin(Paint.Join.ROUND);
+        linePaint.setStrokeWidth(3);
+        linePaint.setAntiAlias(true);
+
+        ((LineGraphSeries) cpmGraphViewSeries).setCustomPaint(linePaint);
 
         cpmGraphView = (GraphView) view.findViewById(R.id.cpm_graph);
         cpmGraphView.addSeries(cpmGraphViewSeries);

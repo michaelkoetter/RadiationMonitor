@@ -24,6 +24,7 @@ dependencies {
     compile 'com.android.support:appcompat-v7:22.2.0'
     compile 'com.android.support:design:22.2.0'
     compile 'com.google.android.gms:play-services:7.5.0'
+    compile 'com.jjoe64:graphview:4.0.1'
     compile fileTree(include: ['*.jar', '*.aar'], dir: 'libs')
     wearApp project(':radmon-wear')
 }

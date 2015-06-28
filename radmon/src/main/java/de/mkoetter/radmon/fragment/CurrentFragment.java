@@ -19,10 +19,12 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.jjoe64.graphview.BarGraphView;
-import com.jjoe64.graphview.CustomLabelFormatter;
+import com.jjoe64.graphview.DefaultLabelFormatter;
 import com.jjoe64.graphview.GraphView;
-import com.jjoe64.graphview.GraphViewSeries;
+import com.jjoe64.graphview.GridLabelRenderer;
+import com.jjoe64.graphview.helper.DateAsXAxisLabelFormatter;
+import com.jjoe64.graphview.series.BarGraphSeries;
+import com.jjoe64.graphview.series.DataPoint;
 
 import java.text.DateFormat;
 import java.text.DecimalFormat;
@@ -53,13 +55,16 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
 
     // TODO make this a preference
     private static final int MEASUREMENTS_LIMIT = 30; // ~ 5 minutes at 10s interval
+    private static final int NUM_Y_LABELS = 5;
 
     private RadmonService radmonService = null;
     private Uri currentSession = null;
     private ContentObserver measurementsObserver = null;
 
-    private GraphView cpmGraphView = null;
-    private GraphViewSeries cpmGraphViewSeries = null;
+    long x = 0;
+
+    private BarGraphSeries<DataPoint> cpmGraphViewSeries = null;
+    GraphView cpmGraphView = null;
 
     private class MeasurementsContentObserver extends ContentObserver {
 
@@ -100,23 +105,25 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
 
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
-        cpmGraphViewSeries = new GraphViewSeries(new GraphView.GraphViewData[0]);
-        cpmGraphView = new BarGraphView(getActivity(),"");
-        cpmGraphView.addSeries(cpmGraphViewSeries);
-        cpmGraphView.setCustomLabelFormatter(new CustomLabelFormatter() {
-            @Override
-            public String formatLabel(double v, boolean xvalue) {
-                if (xvalue) {
-                    return TIME_FORMAT.format(new Date(Double.valueOf(v).longValue()));
-                } else {
-                    return Y_LABEL_FORMAT.format(v);
-                }
-            }
-        });
-        cpmGraphView.setManualYMinBound(0d);
+        cpmGraphViewSeries = new BarGraphSeries<>();
+        cpmGraphViewSeries.setColor(getResources().getColor(R.color.ColorPrimaryDark));
 
-        LinearLayout graphViewContainer = (LinearLayout) view.findViewById(R.id.cpm_graph);
-        graphViewContainer.addView(cpmGraphView);
+        cpmGraphView = (GraphView) view.findViewById(R.id.cpm_graph);
+        cpmGraphView.addSeries(cpmGraphViewSeries);
+
+        cpmGraphView.getGridLabelRenderer().setHorizontalLabelsVisible(false);
+        cpmGraphView.getGridLabelRenderer().setLabelVerticalWidth(80);
+        cpmGraphView.getGridLabelRenderer().setGridStyle(GridLabelRenderer.GridStyle.HORIZONTAL);
+
+        cpmGraphView.getViewport().setYAxisBoundsManual(true);
+        cpmGraphView.getViewport().setXAxisBoundsManual(true);
+
+        cpmGraphView.getViewport().setMinY(0);
+        cpmGraphView.getViewport().setMaxY(20);
+
+        cpmGraphView.getViewport().setMinX(0-MEASUREMENTS_LIMIT);
+        cpmGraphView.getViewport().setMaxX(1);
+
     }
 
     @Override
@@ -154,7 +161,7 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
 
             radmonService.addServiceClient(CurrentFragment.this);
             currentSession = radmonService.getCurrentSession();
-            cpmGraphViewSeries.resetData(new GraphView.GraphViewData[0]);
+            cpmGraphViewSeries.resetData(new DataPoint[0]);
 
             if (currentSession != null) {
                 // register for updates of session & descendants
@@ -280,14 +287,23 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
                 txtDose.setText(DECIMAL_FORMAT.format(dose));
 
                 measurements.moveToLast();
+
                 do {
                     cpm = measurements.getLong(_cpm);
-                    time = measurements.getLong(_time);
-                    GraphView.GraphViewData data = new GraphView.GraphViewData(time, cpm);
-                    cpmGraphViewSeries.appendData(data, false, MEASUREMENTS_LIMIT);
+                    // time = measurements.getLong(_time);
+
+                    DataPoint dataPoint = new DataPoint(x++, cpm);
+                    cpmGraphViewSeries.appendData(dataPoint, false, MEASUREMENTS_LIMIT);
                 } while (measurements.moveToPrevious());
 
-                cpmGraphView.redrawAll();
+                cpmGraphView.getViewport().setMaxX(x);
+                cpmGraphView.getViewport().setMinX(x - MEASUREMENTS_LIMIT);
+
+                double yfactor = Math.floor(cpmGraphViewSeries.getHighestValueY() / (NUM_Y_LABELS - 1));
+
+                cpmGraphView.getViewport().setMaxY((yfactor + 1) * (NUM_Y_LABELS - 1));
+
+                cpmGraphView.onDataChanged(true, false);
             }
         }
     }

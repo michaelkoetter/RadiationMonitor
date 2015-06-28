@@ -101,13 +101,11 @@
 
         </TableLayout>
 
-        <LinearLayout
-            android:orientation="vertical"
+        <com.jjoe64.graphview.GraphView
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
             android:id="@+id/cpm_graph"
-            android:layout_margin="10dp"></LinearLayout>
-
+            android:layout_margin="10dp" />
     </LinearLayout>
 
 </FrameLayout>

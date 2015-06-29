@@ -6,10 +6,17 @@
         <item name="android:fontFamily">sans-serif-condensed-light</item>
     </style>
     <style name="SummaryCPMText">
-        <item name="android:textSize">20sp</item>
+        <item name="android:textSize">16sp</item>
         <item name="android:textColor">#a2a2a2</item>
         <item name="android:fontFamily">sans-serif-condensed-light</item>
     </style>
+    <style name="SummaryNoteText">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">#a2a2a2</item>
+        <item name="android:fontFamily">sans-serif-condensed-light</item>
+        <item name="android:textStyle">italic</item>
+    </style>
+
     <style name="SummarySpacing">
         <item name="android:textSize">8.0sp</item>
     </style>

@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.PowerManager;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.LocalBroadcastManager;
@@ -25,21 +26,34 @@ public class RadmonDataListenerService extends WearableListenerService {
     private static final String DATA_PATH = "/radmon_data";
 
     public static final String DATA_KEY_CPM = "cpm";
+    public static final String DATA_KEY_SEQUENCE = "sequence";
     public static final String DATA_KEY_DOSE_RATE = "dose_rate";
     public static final String DATA_KEY_HISTORY = "history";
+    public static final String DATA_KEY_REDUCED_UPDATE_RATE = "reduced_update_rate";
 
     public static final String BROADCAST_UPDATE_DATA = "de.mkoetter.radmon.UPDATE_DATA";
+    public static final String BROADCAST_CANCEL = "de.mkoetter.radmon.CANCEL";
+
+    private static long DOZE_UPDATE_INTERVAL = 10;
 
     private static final String TAG = "RadmonDataListenerSvc";
 
     private RadmonWearNotificationReceiver receiver;
+
+    private PowerManager powerManager;
 
     @Override
     public void onCreate() {
         super.onCreate();
 
         receiver = new RadmonWearNotificationReceiver();
-        LocalBroadcastManager.getInstance(this).registerReceiver(receiver, new IntentFilter(BROADCAST_UPDATE_DATA));
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(BROADCAST_CANCEL);
+        intentFilter.addAction(BROADCAST_UPDATE_DATA);
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(receiver, intentFilter);
+
+        powerManager = (PowerManager) getSystemService(POWER_SERVICE);
 
         Log.d(TAG, "onCreate");
     }
@@ -53,33 +67,21 @@ public class RadmonDataListenerService extends WearableListenerService {
     }
 
     @Override
-    public void onDataChanged(DataEventBuffer dataEvents) {
-        super.onDataChanged(dataEvents);
-
-        Log.d(TAG, "onDataChanged");
-
-        for (DataEvent event : dataEvents) {
-            DataItem item = event.getDataItem();
-            if (DATA_PATH.equals(item.getUri().getPath())) {
-                DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
-                updateData(
-                        dataMap.getLong(DATA_KEY_CPM, -1),
-                        dataMap.getDouble(DATA_KEY_DOSE_RATE, Double.NaN),
-                        dataMap.getLongArray(DATA_KEY_HISTORY));
-            }
-        }
-    }
-
-    @Override
     public void onMessageReceived(MessageEvent messageEvent) {
         Log.d(TAG, "onMessageReceived: " + messageEvent.getPath());
 
         if (DATA_PATH.equals(messageEvent.getPath())) {
             DataMap dataMap = DataMap.fromByteArray(messageEvent.getData());
-            updateData(
-                    dataMap.getLong(DATA_KEY_CPM, -1),
-                    dataMap.getDouble(DATA_KEY_DOSE_RATE, Double.NaN),
-                    dataMap.getLongArray(DATA_KEY_HISTORY));
+            if (shouldUpdate(dataMap)) {
+                Intent broadcastUpdateData = new Intent();
+                broadcastUpdateData.setAction(BROADCAST_UPDATE_DATA);
+                broadcastUpdateData.putExtra(DATA_KEY_CPM, dataMap.getLong(DATA_KEY_CPM, -1));
+                broadcastUpdateData.putExtra(DATA_KEY_HISTORY, dataMap.getLongArray(DATA_KEY_HISTORY));
+                broadcastUpdateData.putExtra(DATA_KEY_DOSE_RATE, dataMap.getDouble(DATA_KEY_DOSE_RATE));
+                broadcastUpdateData.putExtra(DATA_KEY_REDUCED_UPDATE_RATE, dataMap.getBoolean(DATA_KEY_REDUCED_UPDATE_RATE, false));
+
+                LocalBroadcastManager.getInstance(this).sendBroadcast(broadcastUpdateData);
+            }
         }
     }
 
@@ -89,8 +91,10 @@ public class RadmonDataListenerService extends WearableListenerService {
 
         Log.d(TAG, "onPeerDisconnected");
 
-        // FIXME should broadcast something else
-        updateData(-1, Double.NaN, null);
+        Intent broadcastCancel = new Intent();
+        broadcastCancel.setAction(BROADCAST_CANCEL);
+
+        LocalBroadcastManager.getInstance(this).sendBroadcast(broadcastCancel);
     }
 
     @Override
@@ -99,18 +103,28 @@ public class RadmonDataListenerService extends WearableListenerService {
 
         Log.d(TAG, "onChannelClosed");
 
-        // FIXME should broadcast something else
-        updateData(-1, Double.NaN, null);
+        Intent broadcastCancel = new Intent();
+        broadcastCancel.setAction(BROADCAST_CANCEL);
+
+        LocalBroadcastManager.getInstance(this).sendBroadcast(broadcastCancel);
     }
 
-    private void updateData(long cpm, double doseRate, long[] history) {
-        // broadcast data
-        Intent broadcastUpdateData = new Intent();
-        broadcastUpdateData.setAction(BROADCAST_UPDATE_DATA);
-        broadcastUpdateData.putExtra(DATA_KEY_CPM, cpm);
-        broadcastUpdateData.putExtra(DATA_KEY_HISTORY, history);
-        broadcastUpdateData.putExtra(DATA_KEY_DOSE_RATE, doseRate);
+    /**
+     * Decide if we should update the screen. This will lower the update rate when the device is asleep.
+     *
+     * @param dataMap
+     * @return
+     */
+    private boolean shouldUpdate(DataMap dataMap) {;
+        if (!powerManager.isInteractive()) {
+            // we use a simple sequence and update every n-th call...
+            long sequence = dataMap.getLong(DATA_KEY_SEQUENCE, 1);
+            dataMap.putBoolean(DATA_KEY_REDUCED_UPDATE_RATE, true);
+            return (sequence % DOZE_UPDATE_INTERVAL) == 0;
+        }
 
-        LocalBroadcastManager.getInstance(this).sendBroadcast(broadcastUpdateData);
+        dataMap.putBoolean(DATA_KEY_REDUCED_UPDATE_RATE, false);
+        return true;
     }
+
 }

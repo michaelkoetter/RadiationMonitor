@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
+import android.os.PowerManager;
 import android.support.v4.app.NotificationCompat;
 import android.text.SpannableStringBuilder;
 import android.text.style.RelativeSizeSpan;
@@ -31,12 +32,15 @@ public class RadmonWearNotificationReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
 
-        NotificationManager notificationManager = ((NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE));
+        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+
         long cpm = intent.getLongExtra(RadmonDataListenerService.DATA_KEY_CPM, NO_DATA);
-        long[] history = intent.getLongArrayExtra(RadmonDataListenerService.DATA_KEY_HISTORY);
-        double doseRate = intent.getDoubleExtra(RadmonDataListenerService.DATA_KEY_DOSE_RATE, Double.NaN);
 
         if (cpm != NO_DATA) {
+            long[] history = intent.getLongArrayExtra(RadmonDataListenerService.DATA_KEY_HISTORY);
+            double doseRate = intent.getDoubleExtra(RadmonDataListenerService.DATA_KEY_DOSE_RATE, Double.NaN);
+            boolean reducedUpdateRate = intent.getBooleanExtra(RadmonDataListenerService.DATA_KEY_REDUCED_UPDATE_RATE, false);
+
             SpannableStringBuilder sb = new SpannableStringBuilder()
                     // FIXME use actual value
                     .append(context.getString(R.string.dose_rate_microsievert, doseRate),
@@ -46,6 +50,11 @@ public class RadmonWearNotificationReceiver extends BroadcastReceiver {
 
                     .append(context.getString(R.string.cpm, cpm),
                             new TextAppearanceSpan(context, R.style.SummaryCPMText), 0);
+
+            if (reducedUpdateRate) {
+                sb.append("\n").append(context.getString(R.string.reduced_update_rate),
+                        new TextAppearanceSpan(context, R.style.SummaryNoteText), 0);
+            }
 
 
             Notification.WearableExtender wearableExtender = new Notification.WearableExtender()

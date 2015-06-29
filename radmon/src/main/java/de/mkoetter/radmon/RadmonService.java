@@ -47,8 +47,9 @@ public class RadmonService extends Service implements DeviceClient,
 
     private static final String DATA_PATH = "/radmon_data";
     private static final String DATA_KEY_CPM = "cpm";
+    private static final String DATA_KEY_SEQUENCE = "sequence";
     private static final String DATA_KEY_DOSE_RATE = "dose_rate";
-    private static final String DATA_KEY_DOSE_ACC = "dose_acc";
+
     private static final String DATA_KEY_HISTORY = "history";
 
     private static final long NO_DATA = -1;
@@ -72,12 +73,10 @@ public class RadmonService extends Service implements DeviceClient,
 
     // history
     private long[] history = new long[HISTORY_SIZE];
+    private long sequence = 0;
 
     private List<RadmonServiceClient> serviceClients;
 
-
-    private GraphView wearableGraphView;
-    private BaseSeries<DataPoint> wearableGraphSeries;
 
     public class LocalBinder extends Binder {
         public RadmonService getService() {
@@ -89,10 +88,6 @@ public class RadmonService extends Service implements DeviceClient,
 
     @Override
     public void onCreate() {
-
-        wearableGraphView = new GraphView(this);
-        wearableGraphSeries = new LineGraphSeries<>();
-        wearableGraphView.addSeries(wearableGraphSeries);
 
         googleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(Wearable.API)
@@ -275,6 +270,7 @@ public class RadmonService extends Service implements DeviceClient,
                     for (Node node : getConnectedNodesResult.getNodes()) {
                         DataMap dataMap = new DataMap();
 
+                        dataMap.putLong(DATA_KEY_SEQUENCE, sequence++);
                         dataMap.putLong(DATA_KEY_CPM, cpm);
 
                         if (cpmDevice != null) {

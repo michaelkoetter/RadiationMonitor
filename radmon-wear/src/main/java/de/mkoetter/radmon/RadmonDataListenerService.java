@@ -1,61 +1,45 @@
 package de.mkoetter.radmon;
 
-import android.app.Notification;
-import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.Uri;
 import android.os.PowerManager;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
-import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.wearable.Channel;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
-import com.google.android.gms.wearable.DataItem;
 import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
-import com.google.android.gms.wearable.MessageEvent;
 import com.google.android.gms.wearable.Node;
-import com.google.android.gms.wearable.Wearable;
 import com.google.android.gms.wearable.WearableListenerService;
 
 public class RadmonDataListenerService extends WearableListenerService {
     private static final String DATA_PATH = "/radmon_data";
 
     public static final String DATA_KEY_CPM = "cpm";
-    public static final String DATA_KEY_SEQUENCE = "sequence";
     public static final String DATA_KEY_DOSE_RATE = "dose_rate";
-    public static final String DATA_KEY_HISTORY = "history";
-    public static final String DATA_KEY_REDUCED_UPDATE_RATE = "reduced_update_rate";
 
     public static final String BROADCAST_UPDATE_DATA = "de.mkoetter.radmon.UPDATE_DATA";
     public static final String BROADCAST_CANCEL = "de.mkoetter.radmon.CANCEL";
-
-    private static long DOZE_UPDATE_INTERVAL = 10;
 
     private static final String TAG = "RadmonDataListenerSvc";
 
     private RadmonWearNotificationReceiver receiver;
 
-    private PowerManager powerManager;
+    private Uri currentSession = null;
 
     @Override
     public void onCreate() {
         super.onCreate();
 
-        receiver = new RadmonWearNotificationReceiver();
+        receiver = new RadmonWearNotificationReceiver(this);
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(BROADCAST_CANCEL);
         intentFilter.addAction(BROADCAST_UPDATE_DATA);
 
         LocalBroadcastManager.getInstance(this).registerReceiver(receiver, intentFilter);
-
-        powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-
-        Log.d(TAG, "onCreate");
     }
 
     @Override
@@ -63,38 +47,49 @@ public class RadmonDataListenerService extends WearableListenerService {
         super.onDestroy();
 
         LocalBroadcastManager.getInstance(this).unregisterReceiver(receiver);
-        Log.d(TAG, "onDestroy");
     }
 
     @Override
-    public void onMessageReceived(MessageEvent messageEvent) {
-        Log.d(TAG, "onMessageReceived: " + messageEvent.getPath());
+    public void onDataChanged(DataEventBuffer dataEvents) {
+        Log.d(TAG, "onDataChanged...");
+        for (DataEvent dataEvent : dataEvents) {
 
-        if (DATA_PATH.equals(messageEvent.getPath())) {
-            DataMap dataMap = DataMap.fromByteArray(messageEvent.getData());
-            if (shouldUpdate(dataMap)) {
-                Intent broadcastUpdateData = new Intent();
-                broadcastUpdateData.setAction(BROADCAST_UPDATE_DATA);
-                broadcastUpdateData.putExtra(DATA_KEY_CPM, dataMap.getLong(DATA_KEY_CPM, -1));
-                broadcastUpdateData.putExtra(DATA_KEY_HISTORY, dataMap.getLongArray(DATA_KEY_HISTORY));
-                broadcastUpdateData.putExtra(DATA_KEY_DOSE_RATE, dataMap.getDouble(DATA_KEY_DOSE_RATE));
-                broadcastUpdateData.putExtra(DATA_KEY_REDUCED_UPDATE_RATE, dataMap.getBoolean(DATA_KEY_REDUCED_UPDATE_RATE, false));
+            Log.d(TAG, "... " +
+                    (dataEvent.getType() == DataEvent.TYPE_DELETED ? "D: " : "C: ") + dataEvent.getDataItem().getUri());
 
-                LocalBroadcastManager.getInstance(this).sendBroadcast(broadcastUpdateData);
+            if (dataEvent.getType() == DataEvent.TYPE_CHANGED) {
+                if (currentSession == null) {
+                    // start new session
+                    currentSession = dataEvent.getDataItem().getUri();
+                    onSessionStart(currentSession);
+                }
+
+                // handle data
+                DataMapItem dataMapItem = DataMapItem.fromDataItem(dataEvent.getDataItem());
+                onSessionUpdate(currentSession, dataMapItem.getDataMap());
+            } else if (dataEvent.getType() == DataEvent.TYPE_DELETED) {
+                if (currentSession.equals(dataEvent.getDataItem().getUri())) {
+                    onSessionEnd(currentSession);
+                    currentSession = null;
+                } else {
+                    Log.w(TAG, "received TYPE_DELETED for session I don't know: " + dataEvent.getDataItem().getUri());
+                }
             }
         }
     }
+
 
     @Override
     public void onPeerDisconnected(Node peer) {
         super.onPeerDisconnected(peer);
 
-        Log.d(TAG, "onPeerDisconnected");
+        Log.d(TAG, "onPeerDisconnected: " + peer.getId());
 
-        Intent broadcastCancel = new Intent();
-        broadcastCancel.setAction(BROADCAST_CANCEL);
-
-        LocalBroadcastManager.getInstance(this).sendBroadcast(broadcastCancel);
+        if (currentSession != null && currentSession.getAuthority().equals(peer.getId())) {
+            // the peer who "owns" our session disconnected
+            onSessionEnd(currentSession);
+            currentSession = null;
+        }
     }
 
     @Override
@@ -103,28 +98,27 @@ public class RadmonDataListenerService extends WearableListenerService {
 
         Log.d(TAG, "onChannelClosed");
 
-        Intent broadcastCancel = new Intent();
-        broadcastCancel.setAction(BROADCAST_CANCEL);
+        // no data connection, end session
+        if (currentSession != null) onSessionEnd(currentSession);
+    }
 
+    private void onSessionStart(Uri session) {
+        // try to keep running...
+        startService(new Intent(this, RadmonDataListenerService.class));
+    }
+
+    private void onSessionEnd(Uri session) {
+        Intent broadcastCancel = new Intent(BROADCAST_CANCEL);
         LocalBroadcastManager.getInstance(this).sendBroadcast(broadcastCancel);
+
+        // allow system to destroy us
+        stopSelf();
     }
 
-    /**
-     * Decide if we should update the screen. This will lower the update rate when the device is asleep.
-     *
-     * @param dataMap
-     * @return
-     */
-    private boolean shouldUpdate(DataMap dataMap) {;
-        if (!powerManager.isInteractive()) {
-            // we use a simple sequence and update every n-th call...
-            long sequence = dataMap.getLong(DATA_KEY_SEQUENCE, 1);
-            dataMap.putBoolean(DATA_KEY_REDUCED_UPDATE_RATE, true);
-            return (sequence % DOZE_UPDATE_INTERVAL) == 0;
-        }
-
-        dataMap.putBoolean(DATA_KEY_REDUCED_UPDATE_RATE, false);
-        return true;
+    private void onSessionUpdate(Uri session, DataMap data) {
+        Intent broadcastUpdate = new Intent(BROADCAST_UPDATE_DATA);
+        broadcastUpdate.putExtra(DATA_KEY_CPM, data.getLong(DATA_KEY_CPM));
+        broadcastUpdate.putExtra(DATA_KEY_DOSE_RATE, data.getDouble(DATA_KEY_DOSE_RATE));
+        LocalBroadcastManager.getInstance(this).sendBroadcast(broadcastUpdate);
     }
-
 }

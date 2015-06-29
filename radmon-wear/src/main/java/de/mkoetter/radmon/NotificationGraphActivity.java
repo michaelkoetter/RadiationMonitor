@@ -1,12 +1,9 @@
 package de.mkoetter.radmon;
 
 import android.app.Activity;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.widget.TextView;
 
 import com.jjoe64.graphview.GraphView;
@@ -14,8 +11,6 @@ import com.jjoe64.graphview.GridLabelRenderer;
 import com.jjoe64.graphview.series.BaseSeries;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
-
-import org.w3c.dom.Text;
 
 
 public class NotificationGraphActivity extends Activity {

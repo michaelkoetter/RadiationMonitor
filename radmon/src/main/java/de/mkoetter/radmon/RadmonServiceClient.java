@@ -8,4 +8,5 @@ import android.net.Uri;
 public interface RadmonServiceClient {
     public void onStartSession(Uri session);
     public void onStopSession(Uri session);
+    public void onUpdateCPM(Uri session, long cpm, double doseRate);
 }

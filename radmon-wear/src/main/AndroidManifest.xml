@@ -26,7 +26,6 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.DeviceDefault.Light" >
         </activity>
-
     </application>
 
 </manifest>

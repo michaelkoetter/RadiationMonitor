@@ -24,7 +24,6 @@ import com.jjoe64.graphview.GridLabelRenderer;
 import com.jjoe64.graphview.series.BaseSeries;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
-import com.jjoe64.graphview.series.Series;
 
 import java.text.DateFormat;
 import java.text.DecimalFormat;
@@ -202,6 +201,11 @@ public class CurrentFragment extends Fragment implements RadmonServiceClient {
     public void onStopSession(Uri session) {
         currentSession = null;
         getActivity().getContentResolver().unregisterContentObserver(measurementsObserver);
+    }
+
+    @Override
+    public void onUpdateCPM(Uri session, long cpm, double doseRate) {
+        // ignore
     }
 
     private void registerMeasurementsContentObserver(Uri session) {

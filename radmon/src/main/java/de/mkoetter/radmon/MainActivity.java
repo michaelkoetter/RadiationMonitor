@@ -141,6 +141,11 @@ public class MainActivity extends AppCompatActivity implements RadmonServiceClie
         invalidateOptionsMenu();
     }
 
+    @Override
+    public void onUpdateCPM(Uri session, long cpm, double doseRate) {
+        // ignore
+    }
+
     private interface FragmentInstantiationCallback {
         void instantiated(Fragment fragment);
         void exists(Fragment fragment);

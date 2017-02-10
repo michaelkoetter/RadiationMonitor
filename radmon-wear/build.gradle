@@ -5,6 +5,15 @@ android {
     compileSdkVersion rootProject.ext.compileSdkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
 
+    signingConfigs {
+        release {
+            storeFile file("../release-key.keystore")
+            keyAlias "release_key"
+            storePassword "s3cr3t"
+            keyPassword "s3cr3t"
+        }
+    }
+
     defaultConfig {
         applicationId "de.mkoetter.radmon"
         minSdkVersion 21
@@ -12,9 +21,11 @@ android {
         versionCode 1
         versionName "1.0"
     }
+
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
